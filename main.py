@@ -44,12 +44,19 @@ def callback():
 def handle_message(event):
     user_id = event.source.user_id
     
-    # スプレッドシートにユーザーIDを保存
+    # スプレッドシートからユーザーIDをすべて取得
     user_ids = worksheet.col_values(1)
-    if user_id not in user_ids:
-        worksheet.append_row([user_id])
     
-    reply_message = "✅登録が完了しました！入荷通知をお待ちください。"
+    if user_id not in user_ids:
+        # 新規ユーザーの場合、スプレッドシートにIDを追加
+        worksheet.append_row([user_id])
+        reply_message = "✅登録が完了しました！入荷通知をお待ちください。"
+        print(f"ユーザーID {user_id} がスプレッドシートに新規登録されました。")
+    else:
+        # 既存ユーザーの場合
+        reply_message = "✅すでに登録済みです。"
+        print(f"ユーザーID {user_id} はすでに登録済みです。")
+    
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply_message))
 
 if __name__ == "__main__":
