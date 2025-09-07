@@ -49,6 +49,9 @@ def check_stock():
         print(f"[Error] スプレッドシートの読み込みに失敗しました: {e}")
         return
 
+    # 在庫が見つかった商品を格納するリスト
+    found_products = []
+
     for url in URLS_TO_MONITOR:
         try:
             response = requests.get(url)
@@ -70,9 +73,8 @@ def check_stock():
 
             if in_stock:
                 print(f"✅ 在庫が見つかりました: {url}")
-                for user_id in user_ids:
-                    message_text = f"✅【入荷通知】{product_name}が入荷しました！\n{url}"
-                    send_line_message(user_id, message_text)
+                # 入荷した商品をリストに追加
+                found_products.append(f"・{product_name}\n{url}")
             else:
                 print(f"現在、在庫はありません: {url}")
 
@@ -80,6 +82,12 @@ def check_stock():
             print(f"[Request Error] {url} - {e}")
         except Exception as e:
             print(f"[Error] {url} - {e}")
+
+    # 在庫が見つかった商品がある場合のみ、メッセージをまとめて送信
+    if found_products:
+        message_text = "✅【入荷通知】以下の商品が入荷しました！\n\n" + "\n\n".join(found_products)
+        for user_id in user_ids:
+            send_line_message(user_id, message_text)
 
 if __name__ == "__main__":
     check_stock()
