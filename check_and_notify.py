@@ -5,8 +5,8 @@ from bs4 import BeautifulSoup
 
 USER_ID_FILE = "user_ids.json"
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
-# テスト用の在庫あり商品URLに更新
-URL = "https://www.popmart.com/jp/products/3973/THE-MONSTERS-CONSTELLATION-SERIES"
+# 新しい在庫切れ商品URLに更新
+URL = "https://www.popmart.com/jp/products/5529/MEGA-SPACE-MOLLY-400%25%2B100%25-Sweet-Dream-Bears"
 
 def send_line_message(user_id, text):
     """LINEへメッセージを送信する関数"""
@@ -31,11 +31,11 @@ def check_stock():
         
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # 「カートに追加する」ボタンのテキストをチェック
-        add_to_cart_button = soup.find('button', string="カートに追加する")
+        # 「再入荷を通知」というテキストが存在するかを探す
+        notify_text_button = soup.find(string="再入荷を通知")
         
-        # ボタンが存在すれば「在庫あり」と判定
-        in_stock = add_to_cart_button is not None
+        # テキストが見つからなければ「在庫あり」と判定
+        in_stock = notify_text_button is None
 
         if in_stock:
             print("✅ 在庫が見つかりました！")
@@ -43,7 +43,7 @@ def check_stock():
                 with open(USER_ID_FILE, "r") as f:
                     user_ids = json.load(f)
                 for user_id in user_ids:
-                    send_line_message(user_id, f"✅【テスト通知】在庫ありと検知しました！\n{URL}")
+                    send_line_message(user_id, f"✅【入荷通知】商品が入荷しました！\n{URL}")
             else:
                 print("[Warning] user_ids.jsonが見つかりません。")
         else:
