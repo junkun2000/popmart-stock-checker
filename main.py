@@ -60,6 +60,7 @@ def callback():
             if event["type"] == "message" and event["message"]["type"] == "text":
                 user_id = event["source"]["userId"]
                 save_user_id(user_id)
+                send_line_message(user_id, "✅登録完了！テスト通知が届きました。")
         return "OK"
     except Exception as e:
         print(f"[Error] {e}")
