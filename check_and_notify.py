@@ -2,9 +2,10 @@ import os
 import json
 import requests
 from bs4 import BeautifulSoup
-
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+
+# Google Sheets APIの認証情報
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds_json = os.environ.get("GOOGLE_CREDENTIALS")
 creds_dict = json.loads(creds_json)
@@ -12,10 +13,10 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 worksheet = client.open("LINE Bot User IDs").sheet1
 
-USER_ID_FILE = "user_ids.json"
+# LINE Bot API
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
 
-# 在庫チェック対象のURLを更新
+# 在庫チェック対象のURL
 URL = "https://www.popmart.com/jp/products/5529/MEGA-SPACE-MOLLY-400%25%2B100%25-Sweet-Dream-Bears"
 
 def send_line_message(user_id, text):
@@ -48,18 +49,12 @@ def check_stock():
         if in_stock:
             print("✅ 在庫が見つかりました！")
             
-            # user_ids.jsonからユーザーIDを読み込む
-            if os.path.exists(USER_ID_FILE):
-                with open(USER_ID_FILE, "r") as f:
-                    user_ids = json.load(f)
-                print(f"ユーザーIDを読み込みました: {user_ids}")
-            else:
-                user_ids = []
-                print("[Warning] user_ids.jsonが見つかりません。")
-
+            # ここでスプレッドシートからユーザーIDを読み込む
+            user_ids = worksheet.col_values(1)
+            print(f"ユーザーIDを読み込みました: {user_ids}")
+            
             for user_id in user_ids:
                 send_line_message(user_id, f"✅【入荷通知】商品が入荷しました！\n{URL}")
-
         else:
             print("現在、在庫はありません。")
 
