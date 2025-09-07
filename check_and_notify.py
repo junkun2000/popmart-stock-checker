@@ -42,7 +42,6 @@ def check_stock():
     """在庫チェックと通知を行う関数"""
     print("在庫チェックを開始します...")
     
-    # スプレッドシートからユーザーIDを読み込む
     try:
         user_ids = worksheet.col_values(1)
         print(f"ユーザーIDを読み込みました: {user_ids}")
@@ -57,13 +56,19 @@ def check_stock():
             
             soup = BeautifulSoup(response.text, "html.parser")
             
+            # 商品名を取得する
+            # <h1 class="pdp-details-heading"></h1> の要素からテキストを取得
+            title_tag = soup.find('h1', class_='pdp-details-heading')
+            product_name = title_tag.get_text(strip=True) if title_tag else "商品名不明"
+
             page_text = soup.get_text()
             in_stock = "再入荷を通知" not in page_text
 
             if in_stock:
                 print(f"✅ 在庫が見つかりました: {url}")
                 for user_id in user_ids:
-                    send_line_message(user_id, f"✅【入荷通知】商品が入荷しました！\n{url}")
+                    message_text = f"✅【入荷通知】{product_name}が入荷しました！\n{url}"
+                    send_line_message(user_id, message_text)
             else:
                 print(f"現在、在庫はありません: {url}")
 
