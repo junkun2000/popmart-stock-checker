@@ -3,15 +3,14 @@ import json
 import requests
 from bs4 import BeautifulSoup
 
-# Google スプレッドシートを使用する場合は、以下の部分のコメントアウトを外してください
-# import gspread
-# from oauth2client.service_account import ServiceAccountCredentials
-# scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-# creds_json = os.environ.get("GOOGLE_CREDENTIALS")
-# creds_dict = json.loads(creds_json)
-# creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-# client = gspread.authorize(creds)
-# worksheet = client.open("LINE Bot User IDs").sheet1
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds_json = os.environ.get("GOOGLE_CREDENTIALS")
+creds_dict = json.loads(creds_json)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+client = gspread.authorize(creds)
+worksheet = client.open("LINE Bot User IDs").sheet1
 
 USER_ID_FILE = "user_ids.json"
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
