@@ -16,8 +16,13 @@ worksheet = client.open("LINE Bot User IDs").sheet1
 # LINE Bot API
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
 
-# 在庫チェック対象のURL
-URL = "https://www.popmart.com/jp/products/5529/MEGA-SPACE-MOLLY-400%25%2B100%25-Sweet-Dream-Bears"
+# 在庫チェック対象のURLをリストで定義
+URLS_TO_MONITOR = [
+    "https://www.popmart.com/jp/products/3889/THE-MONSTERS-%E3%82%B3%E3%82%AB%E3%83%BB%E3%82%B3%E3%83%BC%E3%83%A9-%E3%82%B7%E3%83%AA%E3%83%BC%E3%82%BA-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF",
+    "https://www.popmart.com/jp/products/3891/THE-MONSTERS-Have-a-Seat-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF-%E3%82%B7%E3%83%AA%E3%83%BC%E3%82%BA",
+    "https://www.popmart.com/jp/products/4469/THE-MONSTERS-ANGEL-IN-CLOUDS-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF",
+    "https://www.popmart.com/jp/products/5251/THE-MONSTERS-FALL-IN-WILD-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF%E3%83%9A%E3%83%B3%E3%83%80%E3%83%B3%E3%83%88"
+]
 
 def send_line_message(user_id, text):
     """LINEへメッセージを送信する関数"""
@@ -36,32 +41,36 @@ def send_line_message(user_id, text):
 def check_stock():
     """在庫チェックと通知を行う関数"""
     print("在庫チェックを開始します...")
+    
+    # スプレッドシートからユーザーIDを読み込む
     try:
-        response = requests.get(URL)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text, "html.parser")
-        
-        # ページ全体のテキストから「再入荷を通知」という文字列を探す
-        page_text = soup.get_text()
-        in_stock = "再入荷を通知" not in page_text
-
-        if in_stock:
-            print("✅ 在庫が見つかりました！")
-            
-            # ここでスプレッドシートからユーザーIDを読み込む
-            user_ids = worksheet.col_values(1)
-            print(f"ユーザーIDを読み込みました: {user_ids}")
-            
-            for user_id in user_ids:
-                send_line_message(user_id, f"✅【入荷通知】商品が入荷しました！\n{URL}")
-        else:
-            print("現在、在庫はありません。")
-
-    except requests.exceptions.RequestException as e:
-        print(f"[Request Error] {e}")
+        user_ids = worksheet.col_values(1)
+        print(f"ユーザーIDを読み込みました: {user_ids}")
     except Exception as e:
-        print(f"[Error] {e}")
+        print(f"[Error] スプレッドシートの読み込みに失敗しました: {e}")
+        return
+
+    for url in URLS_TO_MONITOR:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            page_text = soup.get_text()
+            in_stock = "再入荷を通知" not in page_text
+
+            if in_stock:
+                print(f"✅ 在庫が見つかりました: {url}")
+                for user_id in user_ids:
+                    send_line_message(user_id, f"✅【入荷通知】商品が入荷しました！\n{url}")
+            else:
+                print(f"現在、在庫はありません: {url}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"[Request Error] {url} - {e}")
+        except Exception as e:
+            print(f"[Error] {url} - {e}")
 
 if __name__ == "__main__":
     check_stock()
