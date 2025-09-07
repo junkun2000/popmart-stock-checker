@@ -21,7 +21,9 @@ URLS_TO_MONITOR = [
     "https://www.popmart.com/jp/products/3889/THE-MONSTERS-%E3%82%B3%E3%82%AB%E3%83%BB%E3%82%B3%E3%83%BC%E3%83%A9-%E3%82%B7%E3%83%AA%E3%83%BC%E3%82%BA-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF",
     "https://www.popmart.com/jp/products/3891/THE-MONSTERS-Have-a-Seat-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF-%E3%82%B7%E3%83%AA%E3%83%BC%E3%82%BA",
     "https://www.popmart.com/jp/products/4469/THE-MONSTERS-ANGEL-IN-CLOUDS-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF",
-    "https://www.popmart.com/jp/products/5251/THE-MONSTERS-FALL-IN-WILD-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF%E3%83%9A%E3%83%B3%E3%83%80%E3%83%B3%E3%83%88"
+    "https://www.popmart.com/jp/products/5251/THE-MONSTERS-FALL-IN-WILD-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF%E3%83%9A%E3%83%B3%E3%83%80%E3%83%B3%E3%83%88",
+    "https://www.popmart.com/jp/products/3884",
+    "https://www.popmart.com/jp/products/6935"
 ]
 
 def send_line_message(user_id, text):
