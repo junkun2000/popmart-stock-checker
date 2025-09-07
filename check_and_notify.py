@@ -56,8 +56,6 @@ def check_stock():
             
             soup = BeautifulSoup(response.text, "html.parser")
             
-            # 商品名を取得する
-            # <h1 class="pdp-details-heading"></h1> の要素からテキストを取得
             title_tag = soup.find('h1', class_='pdp-details-heading')
             product_name = title_tag.get_text(strip=True) if title_tag else "商品名不明"
 
