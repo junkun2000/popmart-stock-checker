@@ -49,4 +49,37 @@ def check_stock():
         print(f"[Error] スプレッドシートの読み込みに失敗しました: {e}")
         return
 
-    for url in URL
+    for url in URLS_TO_MONITOR:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, "html.parser")
+            
+            # 商品名を取得（タイトルタグから）
+            title_tag = soup.find('title')
+            if title_tag:
+                full_title = title_tag.get_text(strip=True)
+                product_name = full_title.split('|')[0].strip()
+            else:
+                product_name = "商品名不明"
+
+            # 在庫判定ロジック
+            add_to_cart_button = soup.find('button', class_='add-to-cart-button')
+            in_stock = add_to_cart_button is not None
+
+            if in_stock:
+                print(f"✅ 在庫が見つかりました: {url}")
+                for user_id in user_ids:
+                    message_text = f"✅【入荷通知】{product_name}が入荷しました！\n{url}"
+                    send_line_message(user_id, message_text)
+            else:
+                print(f"現在、在庫はありません: {url}")
+
+        except requests.exceptions.RequestException as e:
+            print(f"[Request Error] {url} - {e}")
+        except Exception as e:
+            print(f"[Error] {url} - {e}")
+
+if __name__ == "__main__":
+    check_stock()
