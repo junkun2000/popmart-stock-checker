@@ -36,14 +36,15 @@ def send_line_message(user_id, text):
 
 def check_stock():
     try:
-        res = requests.get(URL)
-        soup = BeautifulSoup(res.text, "html.parser")
-        if "カートに追加する" in soup.text or "今すぐ購入" in soup.text:
+        # 在庫チェックをせず、常にTrueにして通知を送る
+        in_stock = True  # ← ここを追加しました
+
+        if in_stock:   # ← ここで常に通知を送るように条件を変更
             if os.path.exists(USER_ID_FILE):
                 with open(USER_ID_FILE, "r") as f:
                     user_ids = json.load(f)
                 for user_id in user_ids:
-                    send_line_message(user_id, f"✅【在庫あり】コーララブブぬいぐるみが入荷しました！\n{URL}")
+                    send_line_message(user_id, f"✅【テスト通知】入荷通知が正常に届いています！\n{URL}")
             else:
                 print("[Warning] user_ids.json not found.")
         else:
