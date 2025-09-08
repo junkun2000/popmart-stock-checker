@@ -72,11 +72,11 @@ def check_stock():
                 product_name = "商品名不明"
 
             # 在庫判定ロジック
-            # 「カートに追加する」というテキストを持つ要素を検索
-            add_to_cart_button = soup.find(string="カートに追加する")
+            # 在庫がある場合にのみ存在する親要素「product-purchase-box」を検出
+            purchase_box = soup.find('div', class_='product-purchase-box')
             
-            # テキストが存在する場合にのみ在庫ありと判断
-            in_stock = add_to_cart_button is not None
+            # 要素が存在する場合にのみ在庫ありと判断
+            in_stock = purchase_box is not None
 
             if in_stock:
                 print(f"✅ 在庫が見つかりました: {url}")
