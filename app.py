@@ -24,7 +24,7 @@ scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/au
 creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file_path, scope)
 client = gspread.authorize(creds)
 spreadsheet = client.open_by_key(SPREADSHEET_ID)
-worksheet = spreadsheet.get_worksheet(0) # 1番目のシート
+worksheet = spreadsheet.get_worksheet(0)
 
 # WebhookHandlerのインスタンスを生成
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
@@ -55,6 +55,9 @@ def callback():
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
+    
+    # ログ出力の追加
+    print(f"メッセージを受信しました。ユーザーID: {user_id}")
     
     if not is_user_id_exists(user_id):
         try:
