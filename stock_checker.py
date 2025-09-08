@@ -34,17 +34,19 @@ def check_stock():
             is_in_stock = False
 
             try:
-                # 「カートに追加する」ボタンが見つかるまで最大20秒待機
-                wait = WebDriverWait(driver, 20)
-                add_to_cart_button = wait.until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "カートに追加する")]')))
+                # 「カートに追加する」ボタンのクラス名を特定
+                # ここでは「カートに追加する」を含む、より信頼性の高いクラス名を探しています。
+                add_to_cart_element = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "カートに追加する")]/..'))
+                )
                 
-                # ボタンが見つかれば在庫ありと判定
-                if add_to_cart_button:
+                # 「カートに追加する」ボタンが見つかれば、在庫ありと判定
+                if add_to_cart_element:
                     is_in_stock = True
 
             except (TimeoutException, NoSuchElementException):
-                # ボタンが見つからなかった場合、在庫なしと判定
-                is_in_stock = False
+                # ボタンが見つからない場合は在庫なし
+                print(f"'{product_name}'の在庫がありませんでした。")
             
             if is_in_stock:
                 in_stock_products.append({"name": product_name, "url": product_url})
