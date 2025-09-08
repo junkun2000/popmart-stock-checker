@@ -6,6 +6,9 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 
@@ -71,7 +74,11 @@ def check_stock():
     for url in URLS_TO_MONITOR:
         try:
             driver.get(url)
-            time.sleep(5)  # ページのJavaScriptが完全に読み込まれるまで待機
+            
+            # ページのJavaScriptが完全に読み込まれるまで待機
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, 'div.product-purchase-box'))
+            )
             
             soup = BeautifulSoup(driver.page_source, "html.parser")
             
@@ -83,7 +90,7 @@ def check_stock():
                 product_name = "商品名不明"
 
             # 在庫判定ロジック
-            # 「product-purchase-box」という親要素を検出
+            # 在庫がある場合にのみ存在する親要素「product-purchase-box」を検出
             purchase_box = soup.find('div', class_='product-purchase-box')
             
             # 要素が存在する場合にのみ在庫ありと判断
