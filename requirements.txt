@@ -1,6 +1,5 @@
 requests
+beautifulsoup4
 gspread
 oauth2client
-beautifulsoup4
 selenium
-chromedriver-binary
