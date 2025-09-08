@@ -4,6 +4,10 @@ import requests
 from bs4 import BeautifulSoup
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+import time
 
 # Google Sheets APIの認証情報
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -57,12 +61,19 @@ def check_stock():
 
     found_products = []
 
+    # Seleniumの設定
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+
     for url in URLS_TO_MONITOR:
         try:
-            response = requests.get(url)
-            response.raise_for_status()
+            driver.get(url)
+            time.sleep(5)  # ページのJavaScriptが完全に読み込まれるまで待機
             
-            soup = BeautifulSoup(response.text, "html.parser")
+            soup = BeautifulSoup(driver.page_source, "html.parser")
             
             # 商品名を取得（h1タグから）
             product_name_tag = soup.find('h1')
@@ -72,7 +83,7 @@ def check_stock():
                 product_name = "商品名不明"
 
             # 在庫判定ロジック
-            # 在庫がある場合にのみ存在する親要素「product-purchase-box」を検出
+            # 「product-purchase-box」という親要素を検出
             purchase_box = soup.find('div', class_='product-purchase-box')
             
             # 要素が存在する場合にのみ在庫ありと判断
@@ -84,10 +95,10 @@ def check_stock():
             else:
                 print(f"現在、在庫はありません: {url}")
 
-        except requests.exceptions.RequestException as e:
-            print(f"[Request Error] {url} - {e}")
         except Exception as e:
             print(f"[Error] {url} - {e}")
+
+    driver.quit()
 
     if found_products:
         message_text = "✅【入荷通知】以下の商品が入荷しました！\n\n" + "\n\n".join(found_products)
