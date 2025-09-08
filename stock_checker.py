@@ -31,25 +31,26 @@ def check_stock():
         for product_name, product_url in POP_MART_PRODUCTS.items():
             driver.get(product_url)
             
-            try:
-                # 属性値が特定の値になるまで待機
-                wait = WebDriverWait(driver, 15)  # 待機時間を少し長くしてみましょう
-                quantity_input = wait.until(
-                    EC.presence_of_element_located((By.CLASS_NAME, 'index_countInput__2ma_C'))
-                )
-                
-                # value属性が"1"になるまで待機
-                wait.until(
-                    lambda driver: quantity_input.get_attribute("value") == "1"
-                )
+            is_in_stock = False
 
-                in_stock_products.append({"name": product_name, "url": product_url})
-                print(f"'{product_name}'の在庫が確認できました。")
+            try:
+                # 「カートに追加する」ボタンが見つかるまで最大20秒待機
+                wait = WebDriverWait(driver, 20)
+                add_to_cart_button = wait.until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "カートに追加する")]')))
+                
+                # ボタンが見つかれば在庫ありと判定
+                if add_to_cart_button:
+                    is_in_stock = True
 
             except (TimeoutException, NoSuchElementException):
-                print(f"'{product_name}'の数量フィールドが見つからない、または在庫切れです。")
-            except Exception as e:
-                print(f"予期せぬエラーが発生しました: {e} ({product_name})")
+                # ボタンが見つからなかった場合、在庫なしと判定
+                is_in_stock = False
+            
+            if is_in_stock:
+                in_stock_products.append({"name": product_name, "url": product_url})
+                print(f"'{product_name}'の在庫が確認できました。")
+            else:
+                print(f"'{product_name}'は在庫切れです。")
 
     except WebDriverException as e:
         print(f"WebDriverエラーが発生しました: {e}")
