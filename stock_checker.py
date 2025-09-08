@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import time
 
 # 環境変数を設定
 DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
@@ -34,22 +35,38 @@ def check_stock():
             is_in_stock = False
 
             try:
-                # 「カートに追加する」ボタンのクラス名を特定
-                # ここでは「カートに追加する」を含む、より信頼性の高いクラス名を探しています。
-                add_to_cart_element = WebDriverWait(driver, 20).until(
-                    EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "カートに追加する")]/..'))
-                )
+                # ページの表示をより確実にするため、少し待つ
+                time.sleep(5)
                 
-                # 「カートに追加する」ボタンが見つかれば、在庫ありと判定
-                if add_to_cart_element:
+                # 1. 「カートに追加する」ボタンの存在を待つ（XPATH）
+                # テキストベースのXPATHは最も確実な方法の一つです
+                wait = WebDriverWait(driver, 20)
+                add_to_cart_button = wait.until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "カートに追加する")]')))
+                
+                if add_to_cart_button:
                     is_in_stock = True
+                    print(f"'{product_name}'の在庫が確認できました。（「カートに追加する」ボタンによる判定）")
 
             except (TimeoutException, NoSuchElementException):
-                # ボタンが見つからない場合は在庫なし
-                print(f"'{product_name}'の在庫がありませんでした。")
-            
+                # 2. ボタンが見つからなかった場合、在庫なしを示すテキストを探す
+                print(f"「カートに追加する」ボタンが見つかりませんでした。在庫なしの可能性をチェックします。")
+                try:
+                    # 「再入荷を通知」ボタンの存在をチェック
+                    restock_notify_button = driver.find_element(By.XPATH, '//*[contains(text(), "再入荷を通知")]')
+                    if restock_notify_button:
+                        is_in_stock = False
+                        print(f"'{product_name}'は在庫切れです。（「再入荷を通知」ボタンによる判定）")
+                except NoSuchElementException:
+                    # どちらのボタンも見つからない場合は在庫ありの可能性
+                    # 例外処理を通過した場合、次のステップで在庫ありと見なす
+                    is_in_stock = True
+
+
             if is_in_stock:
                 in_stock_products.append({"name": product_name, "url": product_url})
+            
+            print("---")
+            if is_in_stock:
                 print(f"'{product_name}'の在庫が確認できました。")
             else:
                 print(f"'{product_name}'は在庫切れです。")
