@@ -2,6 +2,7 @@ import os
 import discord
 import asyncio
 import requests
+from bs4 import BeautifulSoup
 
 # 環境変数を設定
 DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
@@ -17,7 +18,6 @@ def check_stock():
     in_stock_products = []
     
     headers = {
-        # より一般的なUser-Agentを使用
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
         'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7'
     }
@@ -30,12 +30,19 @@ def check_stock():
             response = requests.get(product_url, headers=headers)
             response.raise_for_status()
 
-            # 在庫切れを示すテキストをチェック
-            is_sold_out = "在庫なし" in response.text or "売り切れ" in response.text or "再入荷を通知" in response.text
+            # BeautifulSoupでHTMLを解析
+            soup = BeautifulSoup(response.text, 'html.parser')
 
-            if is_sold_out:
+            # 在庫なしを示す要素のクラス名をチェック
+            # 例: 特定のクラスを持つ要素を探す
+            is_sold_out_text = soup.find('div', class_='goods_btn__oGvB_')
+            is_restock_notify = soup.find('span', string='再入荷を通知')
+
+            if is_sold_out_text and is_restock_notify:
+                # 在庫切れを示す要素が存在すれば、在庫なしと判定
                 print(f"'{product_name}'は在庫切れでした。")
             else:
+                # 在庫切れを示す要素がなければ、在庫ありと判定
                 in_stock_products.append({"name": product_name, "url": product_url})
                 print(f"'{product_name}'の在庫が確認できました。")
 
@@ -68,7 +75,6 @@ async def send_discord_notification(products):
         else:
             print("指定されたチャンネルIDが見つかりません。")
         
-        # 接続が完了してからクライアントを終了
         await client.close()
 
     try:
@@ -81,7 +87,6 @@ async def send_discord_notification(products):
 if __name__ == "__main__":
     stocked_items = check_stock()
     
-    # asyncioのイベントループを明示的に取得し、実行
     loop = asyncio.get_event_loop()
     loop.run_until_complete(send_discord_notification(stocked_items))
     print("スクリプトの実行を終了しました。")
