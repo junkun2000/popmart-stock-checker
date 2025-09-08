@@ -23,7 +23,7 @@ def check_stock():
             soup = BeautifulSoup(response.text, 'html.parser')
             
             # 修正した部分: divタグと新しいクラス名でボタンを検索
-            buy_button = soup.find('div', class_='index_euBtn__7NmZ6 index_red__kx6Ql') 
+            buy_button = soup.find('div', class_='index_red__kx6Ql') 
 
             if buy_button:
                 in_stock_products.append({"name": product_name, "url": product_url})
