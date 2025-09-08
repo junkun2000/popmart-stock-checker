@@ -7,6 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+import pyscreeze
 
 # 環境変数を設定
 DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
@@ -25,8 +26,7 @@ def check_stock():
     chrome_options = Options()
     # ユーザーエージェントを偽装
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-    # ボットと認識されにくいように、ヘッドレスモードを無効化
-    # Render環境では通常有効にしますが、今回はボット対策を徹底するために無効化します
+    # ヘッドレスモードを再度有効化
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
@@ -41,19 +41,28 @@ def check_stock():
             is_in_stock = False
             
             try:
-                # 明示的な待機: 「カートに追加する」ボタンが表示されるまで最大20秒待つ
+                # ページが完全に読み込まれるまで待機
                 wait = WebDriverWait(driver, 20)
-                add_to_cart_button = wait.until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "add_to_cart")]')))
-                
-                # ボタンのテキストを再確認
-                if "カートに追加する" in add_to_cart_button.text:
-                    is_in_stock = True
-                    print(f"'{product_name}'の在庫が確認できました。（「カートに追加する」ボタンによる判定）")
+                wait.until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
 
-            except (TimeoutException, NoSuchElementException):
-                # ボタンが見つからなかった場合、在庫切れと判定
-                print(f"'{product_name}'は在庫切れでした。（「カートに追加する」ボタンが見つからなかったため）")
-                is_in_stock = False
+                # ページのスクリーンショットを撮影
+                screenshot_path = "screenshot.png"
+                driver.save_screenshot(screenshot_path)
+
+                # 画面上の「カートに追加する」ボタンの画像を検索
+                # ここでは事前にボタンの画像を 'add_to_cart_button.png'として用意していると仮定します。
+                # この画像はご自身で取得していただく必要があります。
+                # 例: 成功時のボタンの画像を撮影し、プロジェクトのルートフォルダに配置
+                button_location = pyscreeze.locateOnScreen('add_to_cart_button.png', confidence=0.9)
+                
+                if button_location:
+                    is_in_stock = True
+                    print(f"'{product_name}'の在庫が確認できました。（画像認識による判定）")
+                else:
+                    print(f"'{product_name}'は在庫切れでした。（画像が見つからなかったため）")
+
+            except Exception as e:
+                print(f"画像認識中にエラーが発生しました: {e}")
             
             if is_in_stock:
                 in_stock_products.append({"name": product_name, "url": product_url})
