@@ -19,6 +19,9 @@ POP_MART_PRODUCTS = {
 def check_stock():
     in_stock_products = []
     
+    # Sessionを使用し、クッキーとセッションを維持
+    session = requests.Session()
+    
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -27,23 +30,24 @@ def check_stock():
         'DNT': '1',  # Do Not Track
         'Connection': 'keep-alive',
     }
-
+    
     print("スクリプトの実行を開始します。")
 
     for product_name, product_url in POP_MART_PRODUCTS.items():
         try:
-            response = requests.get(product_url, headers=headers)
+            # 1. 最初にWebページにアクセスしてセッションを確立
+            response = session.get(product_url, headers=headers)
             response.raise_for_status()
             
-            # HTMLから商品IDを抽出
+            # 2. HTMLから商品IDを抽出
             product_id_match = re.search(r'productId: (\d+),', response.text)
             
             if product_id_match:
                 product_id = product_id_match.group(1)
                 
-                # 在庫状況を直接APIで確認
+                # 3. 確立したセッションでAPIを呼び出す
                 api_url = f'https://www.popmart.com/jp/api/product/stock/detail?productId={product_id}'
-                api_response = requests.get(api_url, headers=headers)
+                api_response = session.get(api_url, headers=headers)
                 api_response.raise_for_status()
                 stock_data = api_response.json()
                 
@@ -60,13 +64,13 @@ def check_stock():
                 else:
                     print(f"'{product_name}'は在庫切れでした。（APIによる判定）")
             else:
-                print(f"'{product_name}'の商品IDが見つかりませんでした。HTMLの変更を確認してください!")
+                print(f"'{product_name}'の商品IDが見つかりませんでした。HTMLの変更を確認してください。")
 
         except requests.exceptions.RequestException as e:
             print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
         except Exception as e:
             print(f"予期せぬエラーが発生しました: {e} ({product_name})")
-
+    
     return in_stock_products
 
 async def send_discord_notification(products):
