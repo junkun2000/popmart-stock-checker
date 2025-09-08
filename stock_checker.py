@@ -32,22 +32,22 @@ def check_stock():
             driver.get(product_url)
             
             try:
-                # 数量入力フィールドが表示されるまで最大10秒待機
-                wait = WebDriverWait(driver, 10)
-                # "index_countInput__2ma_C"というクラス名を持つinput要素を探す
-                quantity_input = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'index_countInput__2ma_C')))
+                # 属性値が特定の値になるまで待機
+                wait = WebDriverWait(driver, 15)  # 待機時間を少し長くしてみましょう
+                quantity_input = wait.until(
+                    EC.presence_of_element_located((By.CLASS_NAME, 'index_countInput__2ma_C'))
+                )
                 
-                # value属性の値を取得
-                quantity_value = quantity_input.get_attribute("value")
-                
-                # valueが"1"かどうかで在庫を判断
-                if quantity_value == "1":
-                    in_stock_products.append({"name": product_name, "url": product_url})
-                    print(f"'{product_name}'の在庫が確認できました。")
-                else:
-                    print(f"'{product_name}'は在庫切れです。")
+                # value属性が"1"になるまで待機
+                wait.until(
+                    lambda driver: quantity_input.get_attribute("value") == "1"
+                )
+
+                in_stock_products.append({"name": product_name, "url": product_url})
+                print(f"'{product_name}'の在庫が確認できました。")
+
             except (TimeoutException, NoSuchElementException):
-                print(f"'{product_name}'の数量フィールドが見つかりませんでした。在庫切れの可能性がございます。")
+                print(f"'{product_name}'の数量フィールドが見つからない、または在庫切れです。")
             except Exception as e:
                 print(f"予期せぬエラーが発生しました: {e} ({product_name})")
 
