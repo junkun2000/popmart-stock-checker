@@ -5,8 +5,8 @@ from bs4 import BeautifulSoup
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -69,11 +69,11 @@ def check_stock():
     options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
+    options.binary_location = "/usr/bin/google-chrome"
     
     # Render環境でWebDriverのパスを設定
-    options.binary_location = "/usr/bin/google-chrome"
     service = Service("/usr/local/bin/chromedriver")
-
+    
     driver = webdriver.Chrome(service=service, options=options)
 
     for url in URLS_TO_MONITOR:
