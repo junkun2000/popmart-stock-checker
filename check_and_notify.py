@@ -71,11 +71,11 @@ def check_stock():
                 product_name = "商品名不明"
 
             # 最終確定版 在庫判定ロジック
-            # 「再入荷を通知」というテキストが存在するかで在庫切れを判断
-            notify_text = soup.find(string=lambda text: "再入荷を通知" in text)
+            # ページ全体のテキストを取得し、在庫切れを示すテキストが存在するか確認
+            page_text = soup.get_text()
             
-            # テキストが存在しない場合にのみ在庫ありと判断
-            in_stock = notify_text is None
+            # 「再入荷を通知」という文字列が含まれているかで在庫切れを判断
+            in_stock = "再入荷を通知" not in page_text
 
             if in_stock:
                 print(f"✅ 在庫が見つかりました: {url}")
