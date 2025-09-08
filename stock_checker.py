@@ -41,11 +41,11 @@ async def check_and_notify():
             is_in_stock = False
             
             try:
-                # ページが完全に読み込まれるまで待機 (30秒に延長)
+                # ページが完全に読み込まれるまで待機
                 wait = WebDriverWait(driver, 30)
                 
-                # 在庫がある場合に表示される「カートに追加する」ボタンの要素を探す
-                stock_button = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'add-to-cart-button')))
+                # 在庫がある場合に表示される「カートに追加する」ボタンの要素を、正しいクラス名で探す
+                stock_button = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'index_black__RgEgP')))
                 
                 # ボタンが表示されていれば在庫あり
                 if stock_button.is_displayed():
@@ -53,7 +53,6 @@ async def check_and_notify():
                     print(f"'{product_name}'の在庫が確認できました。（要素の存在による判定）")
 
             except TimeoutException:
-                # ボタンが見つからない場合は在庫切れと判断
                 print(f"'{product_name}'は在庫切れでした。（ボタンが見つからなかったため）")
             except NoSuchElementException:
                 print(f"'{product_name}'は在庫切れでした。（要素が存在しないため）")
@@ -67,7 +66,6 @@ async def check_and_notify():
         print(f"WebDriverエラーが発生しました: {e}")
     finally:
         if driver:
-            # 確実にブラウザを終了
             driver.quit()
     
     if in_stock_products:
