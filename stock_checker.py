@@ -1,10 +1,12 @@
 import os
 import discord
 import asyncio
-import requests
-import json
-import re
-from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 # 環境変数を設定
 DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
@@ -19,57 +21,50 @@ POP_MART_PRODUCTS = {
 def check_stock():
     in_stock_products = []
     
-    # Sessionを使用し、クッキーとセッションを維持
-    session = requests.Session()
+    # ブラウザオプションを設定
+    chrome_options = Options()
+    # ユーザーエージェントを偽装
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    # ボットと認識されにくいように、ヘッドレスモードを無効化
+    # Render環境では通常有効にしますが、今回はボット対策を徹底するために無効化します
+    chrome_options.add_argument("--headless=new")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
     
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Referer': 'https://www.popmart.com/jp/',
-        'DNT': '1',  # Do Not Track
-        'Connection': 'keep-alive',
-    }
-    
-    print("スクリプトの実行を開始します。")
+    driver = None
+    try:
+        driver = webdriver.Chrome(options=chrome_options)
+        for product_name, product_url in POP_MART_PRODUCTS.items():
+            print(f"'{product_name}'の在庫を確認中...")
+            driver.get(product_url)
+            
+            is_in_stock = False
+            
+            try:
+                # 明示的な待機: 「カートに追加する」ボタンが表示されるまで最大20秒待つ
+                wait = WebDriverWait(driver, 20)
+                add_to_cart_button = wait.until(EC.presence_of_element_located((By.XPATH, '//*[contains(@class, "add_to_cart")]')))
+                
+                # ボタンのテキストを再確認
+                if "カートに追加する" in add_to_cart_button.text:
+                    is_in_stock = True
+                    print(f"'{product_name}'の在庫が確認できました。（「カートに追加する」ボタンによる判定）")
 
-    for product_name, product_url in POP_MART_PRODUCTS.items():
-        try:
-            # 1. 最初にWebページにアクセスしてセッションを確立
-            response = session.get(product_url, headers=headers)
-            response.raise_for_status()
-            
-            # 2. HTMLから商品IDを抽出
-            product_id_match = re.search(r'productId: (\d+),', response.text)
-            
-            if product_id_match:
-                product_id = product_id_match.group(1)
-                
-                # 3. 確立したセッションでAPIを呼び出す
-                api_url = f'https://www.popmart.com/jp/api/product/stock/detail?productId={product_id}'
-                api_response = session.get(api_url, headers=headers)
-                api_response.raise_for_status()
-                stock_data = api_response.json()
-                
+            except (TimeoutException, NoSuchElementException):
+                # ボタンが見つからなかった場合、在庫切れと判定
+                print(f"'{product_name}'は在庫切れでした。（「カートに追加する」ボタンが見つからなかったため）")
                 is_in_stock = False
-                if 'data' in stock_data:
-                    for sku in stock_data['data']:
-                        if not sku.get('isSoldOut') and sku.get('quantity', 0) > 0:
-                            is_in_stock = True
-                            break
+            
+            if is_in_stock:
+                in_stock_products.append({"name": product_name, "url": product_url})
 
-                if is_in_stock:
-                    in_stock_products.append({"name": product_name, "url": product_url})
-                    print(f"'{product_name}'の在庫が確認できました。（APIによる判定）")
-                else:
-                    print(f"'{product_name}'は在庫切れでした。（APIによる判定）")
-            else:
-                print(f"'{product_name}'の商品IDが見つかりませんでした。HTMLの変更を確認してください。")
-
-        except requests.exceptions.RequestException as e:
-            print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
-        except Exception as e:
-            print(f"予期せぬエラーが発生しました: {e} ({product_name})")
+    except WebDriverException as e:
+        print(f"WebDriverエラーが発生しました: {e}")
+    except Exception as e:
+        print(f"予期せぬエラーが発生しました: {e}")
+    finally:
+        if driver:
+            driver.quit()
     
     return in_stock_products
 
