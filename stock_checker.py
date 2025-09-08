@@ -21,7 +21,11 @@ def check_stock():
     
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7'
+        'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Referer': 'https://www.popmart.com/jp/',
+        'DNT': '1',  # Do Not Track
+        'Connection': 'keep-alive',
     }
 
     print("スクリプトの実行を開始します。")
@@ -30,7 +34,6 @@ def check_stock():
         try:
             response = requests.get(product_url, headers=headers)
             response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
             
             # 商品IDをHTMLから抽出
             product_id_match = re.search(r'productId: (\d+),', response.text)
