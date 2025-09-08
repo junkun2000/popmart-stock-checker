@@ -1,13 +1,7 @@
 import os
 import discord
 import asyncio
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import time
+import requests
 
 # 環境変数を設定
 DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
@@ -21,64 +15,32 @@ POP_MART_PRODUCTS = {
 def check_stock():
     in_stock_products = []
     
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    
-    driver = None
-    try:
-        driver = webdriver.Chrome(options=chrome_options)
-        for product_name, product_url in POP_MART_PRODUCTS.items():
-            driver.get(product_url)
-            
-            is_in_stock = False
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7'
+    }
 
-            try:
-                # ページの表示をより確実にするため、少し待つ
-                time.sleep(5)
-                
-                # 1. 「カートに追加する」ボタンの存在を待つ（XPATH）
-                # テキストベースのXPATHは最も確実な方法の一つです
-                wait = WebDriverWait(driver, 20)
-                add_to_cart_button = wait.until(EC.presence_of_element_located((By.XPATH, '//*[contains(text(), "カートに追加する")]')))
-                
-                if add_to_cart_button:
-                    is_in_stock = True
-                    print(f"'{product_name}'の在庫が確認できました。（「カートに追加する」ボタンによる判定）")
+    print("スクリプトの実行を開始します。")
 
-            except (TimeoutException, NoSuchElementException):
-                # 2. ボタンが見つからなかった場合、在庫なしを示すテキストを探す
-                print(f"「カートに追加する」ボタンが見つかりませんでした。在庫なしの可能性をチェックします。")
-                try:
-                    # 「再入荷を通知」ボタンの存在をチェック
-                    restock_notify_button = driver.find_element(By.XPATH, '//*[contains(text(), "再入荷を通知")]')
-                    if restock_notify_button:
-                        is_in_stock = False
-                        print(f"'{product_name}'は在庫切れです。（「再入荷を通知」ボタンによる判定）")
-                except NoSuchElementException:
-                    # どちらのボタンも見つからない場合は在庫ありの可能性
-                    # 例外処理を通過した場合、次のステップで在庫ありと見なす
-                    is_in_stock = True
+    for product_name, product_url in POP_MART_PRODUCTS.items():
+        try:
+            # ページを直接リクエスト
+            response = requests.get(product_url, headers=headers)
+            response.raise_for_status()  # ステータスコードがエラーの場合は例外を発生させる
 
-
-            if is_in_stock:
-                in_stock_products.append({"name": product_name, "url": product_url})
-            
-            print("---")
-            if is_in_stock:
-                print(f"'{product_name}'の在庫が確認できました。")
-            else:
+            # レスポンスのHTMLに「在庫切れ」というテキストが含まれているかをチェック
+            if "在庫なし" in response.text or "売り切れ" in response.text or "再入荷を通知" in response.text:
                 print(f"'{product_name}'は在庫切れです。")
+            else:
+                # 在庫切れを示すテキストがなければ、在庫ありと判定
+                in_stock_products.append({"name": product_name, "url": product_url})
+                print(f"'{product_name}'の在庫が確認できました。")
 
-    except WebDriverException as e:
-        print(f"WebDriverエラーが発生しました: {e}")
-    except Exception as e:
-        print(f"予期せぬエラーが発生しました: {e}")
-    finally:
-        if driver:
-            driver.quit()
-    
+        except requests.exceptions.RequestException as e:
+            print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
+        except Exception as e:
+            print(f"予期せぬエラーが発生しました: {e} ({product_name})")
+
     return in_stock_products
 
 async def send_discord_notification(products):
@@ -111,7 +73,6 @@ async def send_discord_notification(products):
         print(f"Discordへの送信中にエラーが発生しました: {e}")
 
 if __name__ == "__main__":
-    print("スクリプトの実行を開始します。")
     stocked_items = check_stock()
     if stocked_items:
         asyncio.run(send_discord_notification(stocked_items))
