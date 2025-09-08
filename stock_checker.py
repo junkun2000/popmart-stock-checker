@@ -32,33 +32,32 @@ def check_stock():
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # HTML内の<script>タグからJSONデータを検索
-            json_data = None
-            scripts = soup.find_all('script')
-            for script in scripts:
-                if 'skuDataList' in str(script):
-                    # `skuDataList`を含むスクリプトタグからJSONを抽出
-                    try:
-                        json_match = re.search(r'var skuDataList = (.*?);', script.string)
-                        if json_match:
-                            json_data = json.loads(json_match.group(1))
-                            break
-                    except (json.JSONDecodeError, AttributeError):
-                        continue
-
-            is_in_stock = False
-            if json_data:
-                # JSONデータ内の`quantity`や`soldOut`プロパティを確認
-                for item in json_data:
-                    if item.get('soldOut') == False and item.get('quantity', 0) > 0:
-                        is_in_stock = True
-                        break
+            # 商品IDをHTMLから抽出
+            product_id_match = re.search(r'productId: (\d+),', response.text)
             
-            if is_in_stock:
-                in_stock_products.append({"name": product_name, "url": product_url})
-                print(f"'{product_name}'の在庫が確認できました。（JSONデータによる判定）")
+            if product_id_match:
+                product_id = product_id_match.group(1)
+                
+                # 在庫状況を直接APIで確認
+                api_url = f'https://www.popmart.com/jp/api/product/stock/detail?productId={product_id}'
+                api_response = requests.get(api_url, headers=headers)
+                api_response.raise_for_status()
+                stock_data = api_response.json()
+                
+                is_in_stock = False
+                if 'data' in stock_data:
+                    for sku in stock_data['data']:
+                        if not sku.get('isSoldOut') and sku.get('quantity', 0) > 0:
+                            is_in_stock = True
+                            break
+
+                if is_in_stock:
+                    in_stock_products.append({"name": product_name, "url": product_url})
+                    print(f"'{product_name}'の在庫が確認できました。（APIによる判定）")
+                else:
+                    print(f"'{product_name}'は在庫切れでした。（APIによる判定）")
             else:
-                print(f"'{product_name}'は在庫切れでした。（JSONデータによる判定）")
+                print(f"'{product_name}'の商品IDが見つかりませんでした。HTMLの変更を確認してください。")
 
         except requests.exceptions.RequestException as e:
             print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
