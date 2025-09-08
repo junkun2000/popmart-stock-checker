@@ -2,6 +2,8 @@ import os
 import discord
 import asyncio
 import requests
+import json
+import re
 from bs4 import BeautifulSoup
 
 # 環境変数を設定
@@ -18,7 +20,7 @@ def check_stock():
     in_stock_products = []
     
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7'
     }
 
@@ -30,16 +32,33 @@ def check_stock():
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            # 在庫状況を示すデータ属性を持つ要素を検索
-            stock_status_div = soup.find('div', class_='goods-info-right')
+            # HTML内の<script>タグからJSONデータを検索
+            json_data = None
+            scripts = soup.find_all('script')
+            for script in scripts:
+                if 'skuDataList' in str(script):
+                    # `skuDataList`を含むスクリプトタグからJSONを抽出
+                    try:
+                        json_match = re.search(r'var skuDataList = (.*?);', script.string)
+                        if json_match:
+                            json_data = json.loads(json_match.group(1))
+                            break
+                    except (json.JSONDecodeError, AttributeError):
+                        continue
+
+            is_in_stock = False
+            if json_data:
+                # JSONデータ内の`quantity`や`soldOut`プロパティを確認
+                for item in json_data:
+                    if item.get('soldOut') == False and item.get('quantity', 0) > 0:
+                        is_in_stock = True
+                        break
             
-            if stock_status_div and '再入荷を通知' not in stock_status_div.get_text():
-                # '再入荷を通知'というテキストが含まれていない場合は在庫ありと判定
+            if is_in_stock:
                 in_stock_products.append({"name": product_name, "url": product_url})
-                print(f"'{product_name}'の在庫が確認できました。（テキストによる判定）")
+                print(f"'{product_name}'の在庫が確認できました。（JSONデータによる判定）")
             else:
-                # '再入荷を通知'というテキストが含まれている場合は在庫切れと判定
-                print(f"'{product_name}'は在庫切れでした。（テキストによる判定）")
+                print(f"'{product_name}'は在庫切れでした。（JSONデータによる判定）")
 
         except requests.exceptions.RequestException as e:
             print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
