@@ -43,18 +43,16 @@ def check_stock():
             is_in_stock = False
             
             try:
-                # ページが完全に読み込まれるまで待機
-                wait = WebDriverWait(driver, 20)
+                # ページが完全に読み込まれるまで待機 (30秒に延長)
+                wait = WebDriverWait(driver, 30)
                 wait.until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
 
                 # ページのスクリーンショットを撮影
-                screenshot_path = "screenshot.png"
+                screenshot_path = f"screenshot_{product_name}.png"
                 driver.save_screenshot(screenshot_path)
-
+                print(f"スクリーンショットを'{screenshot_path}'に保存しました。")
+                
                 # 画面上の「カートに追加する」ボタンの画像を検索
-                # ここでは事前にボタンの画像を 'add_to_cart_button.png'として用意していると仮定します。
-                # この画像はご自身で取得していただく必要があります。
-                # 例: 成功時のボタンの画像を撮影し、プロジェクトのルートフォルダに配置
                 button_location = pyscreeze.locateOnScreen('add_to_cart_button.png', confidence=0.9)
                 
                 if button_location:
