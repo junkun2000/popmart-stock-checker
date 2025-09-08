@@ -10,6 +10,7 @@ DISCORD_CHANNEL_ID = int(os.environ.get('DISCORD_CHANNEL_ID'))
 # 監視したい商品のURLと商品名を辞書形式で定義
 POP_MART_PRODUCTS = {
     "CRYBABY-Crying-for-Love-Series-Plush-Gift-Box": "https://www.popmart.com/jp/products/4572/CRYBABY-Crying-for-Love-Series-Plush-Gift-Box",
+    "Crybaby-Crying-in-the-Wood-Series": "https://www.popmart.com/jp/products/4582/-Crybaby-Crying-in-the-Wood-Series"
 }
 
 def check_stock():
