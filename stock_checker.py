@@ -17,7 +17,8 @@ def check_stock():
     in_stock_products = []
     
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+        # より一般的なUser-Agentを使用
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
         'Accept-Language': 'ja-JP,ja;q=0.9,en-US;q=0.8,en;q=0.7'
     }
 
@@ -31,7 +32,7 @@ def check_stock():
 
             # レスポンスのHTMLに「在庫切れ」というテキストが含まれているかをチェック
             if "在庫なし" in response.text or "売り切れ" in response.text or "再入荷を通知" in response.text:
-                print(f"'{product_name}'は在庫切れです。")
+                print(f"'{product_name}'は在庫切れでした。")
             else:
                 # 在庫切れを示すテキストがなければ、在庫ありと判定
                 in_stock_products.append({"name": product_name, "url": product_url})
