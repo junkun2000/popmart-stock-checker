@@ -23,7 +23,8 @@ URLS_TO_MONITOR = [
     "https://www.popmart.com/jp/products/4469/THE-MONSTERS-ANGEL-IN-CLOUDS-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF",
     "https://www.popmart.com/jp/products/5251/THE-MONSTERS-FALL-IN-WILD-%E3%81%AC%E3%81%84%E3%81%90%E3%82%8B%E3%81%BF%E3%83%9A%E3%83%B3%E3%83%80%E3%83%B3%E3%83%88",
     "https://www.popmart.com/jp/products/3884",
-    "https://www.popmart.com/jp/products/6935"
+    "https://www.popmart.com/jp/products/6935",
+    "https://www.popmart.com/jp/products/4572/CRYBABY-Crying-for-Love-Series-Plush-Gift-Box"
 ]
 
 def send_line_message(user_id, text):
