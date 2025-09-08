@@ -31,20 +31,27 @@ async def check_and_notify():
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         
-        # ローカルではなく、リモートのWebDriverに接続
-        driver = webdriver.Remote(command_executor='http://10.229.59.217:4444/wd/hub', options=chrome_options)
+        # ページ読み込みのタイムアウトを60秒に設定
+        chrome_options.page_load_timeout = 60
+        
+        # ローカルではなく、リモートのWebDriverに接続（より安定したlocalhostに戻す）
+        driver = webdriver.Remote(command_executor='http://localhost:4444/wd/hub', options=chrome_options)
         
         for product_name, product_url in POP_MART_PRODUCTS.items():
             print(f"'{product_name}'の在庫を確認中...")
-            driver.get(product_url)
+            
+            # ページ読み込み時にタイムアウトが発生するように`try...except`ブロックを追加
+            try:
+                driver.get(product_url)
+            except TimeoutException:
+                print(f"'{product_name}'のページ読み込みがタイムアウトしました。次の商品に移ります。")
+                continue
             
             is_in_stock = False
             
             try:
-                # ページが完全に読み込まれるまで待機
+                # 在庫がある場合に表示される「カートに追加する」ボタンの要素を、正しいクラス名で探す
                 wait = WebDriverWait(driver, 30)
-                
-                # 在庫がある場合に表示される「カートに追加する」ボタンの要素を探す
                 stock_button = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'index_black__RgEgP')))
                 
                 # ボタンが表示されていれば在庫あり
