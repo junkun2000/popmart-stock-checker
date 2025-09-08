@@ -1,15 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
-from linebot import LineBotApi
-from linebot.models import TextSendMessage
 import os
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import discord
 
 # 環境変数を設定
-LINE_CHANNEL_ACCESS_TOKEN = os.environ.get('LINE_CHANNEL_ACCESS_TOKEN')
-GOOGLE_CREDENTIALS = os.environ.get('GOOGLE_CREDENTIALS')
-SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID')
+DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
+DISCORD_CHANNEL_ID = int(os.environ.get('DISCORD_CHANNEL_ID'))
 
 # 監視したい商品のURLと商品名を辞書形式で定義
 POP_MART_PRODUCTS = {
@@ -17,23 +13,8 @@ POP_MART_PRODUCTS = {
     # 他の商品を追加
 }
 
-# Googleスプレッドシートに接続
-creds_file_path = 'creds.json'
-with open(creds_file_path, 'w') as f:
-    f.write(GOOGLE_CREDENTIALS)
-
-scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file_path, scope)
-client = gspread.authorize(creds)
-spreadsheet = client.open_by_key(SPREADSHEET_ID)
-worksheet = spreadsheet.get_worksheet(0)
-
-# LINE Bot APIのインスタンスを生成
-line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
-
-def check_stock_and_notify():
+def check_stock():
     in_stock_products = []
-
     for product_name, product_url in POP_MART_PRODUCTS.items():
         try:
             response = requests.get(product_url)
@@ -47,24 +28,35 @@ def check_stock_and_notify():
                 in_stock_products.append({"name": product_name, "url": product_url})
         except Exception as e:
             print(f"在庫チェック中にエラーが発生しました: {e} ({product_name})")
+    
+    return in_stock_products
 
-    if in_stock_products:
-        message = "【POP MART 入荷通知】\n\n以下の商品が入荷しました！\n\n"
-        for product in in_stock_products:
-            message += f"・{product['name']}\n{product['url']}\n\n"
-        
-        # スプレッドシートからユーザーIDリストを取得
-        user_ids = worksheet.col_values(1)
-        
-        # 全ユーザーにメッセージを送信
-        for user_id in user_ids:
-            try:
-                line_bot_api.push_message(user_id, TextSendMessage(text=message.strip()))
-                print(f"通知をユーザーID {user_id}に送信しました。")
-            except Exception as e:
-                print(f"ユーザーID {user_id} への送信中にエラーが発生しました: {e}")
-    else:
-        print("全商品まだ在庫切れです。")
+async def send_discord_notification(products):
+    if not products:
+        print("在庫切れの商品はありませんでした。")
+        return
+
+    message = "【POP MART 入荷通知】\n\n以下の商品が入荷しました！\n\n"
+    for product in products:
+        message += f"・{product['name']}\n{product['url']}\n\n"
+    
+    intents = discord.Intents.default()
+    client = discord.Client(intents=intents)
+
+    @client.event
+    async def on_ready():
+        print(f'{client.user}としてログインしました')
+        channel = client.get_channel(DISCORD_CHANNEL_ID)
+        if channel:
+            await channel.send(message.strip())
+        else:
+            print("指定されたチャンネルが見つかりません。")
+        await client.close()
+
+    await client.start(DISCORD_BOT_TOKEN)
 
 if __name__ == "__main__":
-    check_stock_and_notify()
+    stocked_items = check_stock()
+    if stocked_items:
+        import asyncio
+        asyncio.run(send_discord_notification(stocked_items))
