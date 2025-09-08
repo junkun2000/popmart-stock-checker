@@ -30,8 +30,10 @@ def check_stock():
             response = requests.get(product_url, headers=headers)
             response.raise_for_status()
 
-            # レスポンスのHTMLに「在庫切れ」というテキストが含まれているかをチェック
-            if "在庫なし" in response.text or "売り切れ" in response.text or "再入荷を通知" in response.text:
+            # 在庫切れを示すテキストをチェック
+            is_sold_out = "在庫なし" in response.text or "売り切れ" in response.text or "再入荷を通知" in response.text
+
+            if is_sold_out:
                 print(f"'{product_name}'は在庫切れでした。")
             else:
                 in_stock_products.append({"name": product_name, "url": product_url})
