@@ -31,11 +31,15 @@ async def check_and_notify():
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-dev-shm-usage")
         
-        # ページ読み込みのタイムアウトを60秒に設定
-        chrome_options.page_load_timeout = 60
-        
-        # ローカルではなく、リモートのWebDriverに接続（より安定したlocalhostに戻す）
+        # ローカルではなく、リモートのWebDriverに接続
         driver = webdriver.Remote(command_executor='http://localhost:4444/wd/hub', options=chrome_options)
+
+        # ページ読み込みのタイムアウトを30秒に設定
+        driver.set_page_load_timeout(30)
+        # スクリプト実行のタイムアウトを30秒に設定
+        driver.set_script_timeout(30)
+        # 暗黙的な待機時間を5秒に設定
+        driver.implicitly_wait(5)
         
         for product_name, product_url in POP_MART_PRODUCTS.items():
             print(f"'{product_name}'の在庫を確認中...")
