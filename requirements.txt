@@ -1,9 +1,3 @@
-Flask
 requests
-beautifulsoup4
-gunicorn
-gspread
-oauth2client
-line-bot-sdk
 selenium
 chromedriver-binary
