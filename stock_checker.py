@@ -44,7 +44,7 @@ async def check_and_notify():
                 # ページが完全に読み込まれるまで待機
                 wait = WebDriverWait(driver, 30)
                 
-                # 在庫がある場合に表示される「カートに追加する」ボタンの要素を、正しいクラス名で探す
+                # 在庫がある場合に表示される「カートに追加する」ボタンの要素を探す
                 stock_button = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'index_black__RgEgP')))
                 
                 # ボタンが表示されていれば在庫あり
