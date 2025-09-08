@@ -32,7 +32,7 @@ async def check_and_notify():
         chrome_options.add_argument("--disable-dev-shm-usage")
         
         # ローカルではなく、リモートのWebDriverに接続
-        driver = webdriver.Remote(command_executor='http://localhost:4444/wd/hub', options=chrome_options)
+        driver = webdriver.Remote(command_executor='http://10.229.59.217:4444/wd/hub', options=chrome_options)
         
         for product_name, product_url in POP_MART_PRODUCTS.items():
             print(f"'{product_name}'の在庫を確認中...")
