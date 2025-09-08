@@ -7,7 +7,6 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import WebDriverException, TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import pyscreeze
 from selenium.webdriver import Remote
 
 # 環境変数を設定
@@ -25,16 +24,13 @@ def check_stock():
     
     # ブラウザオプションを設定
     chrome_options = Options()
-    # ユーザーエージェントを偽装
     chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
-    # ヘッドレスモードを再度有効化
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     
     driver = None
     try:
-        # ローカルではなく、リモートのWebDriverに接続するように修正
         driver = webdriver.Remote(command_executor='http://localhost:4444/wd/hub', options=chrome_options)
         for product_name, product_url in POP_MART_PRODUCTS.items():
             print(f"'{product_name}'の在庫を確認中...")
@@ -45,32 +41,31 @@ def check_stock():
             try:
                 # ページが完全に読み込まれるまで待機 (30秒に延長)
                 wait = WebDriverWait(driver, 30)
-                wait.until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
-
-                # ページのスクリーンショットを撮影
-                screenshot_path = f"screenshot_{product_name}.png"
-                driver.save_screenshot(screenshot_path)
-                print(f"スクリーンショットを'{screenshot_path}'に保存しました。")
                 
-                # 画面上の「カートに追加する」ボタンの画像を検索
-                button_location = pyscreeze.locateOnScreen('add_to_cart_button.png', confidence=0.9)
+                # 在庫がある場合に表示される「カートに追加する」ボタンの要素を探す
+                # **注意:** このセレクタは例です。実際のボタンのclass名やIDを特定する必要があります。
+                # ブラウザの開発者ツール（F12）でボタンのHTML要素を調査してください。
+                # 例：<button class="add-to-cart-button">カートに追加する</button>
+                stock_button = wait.until(EC.presence_of_element_located((By.CLASS_NAME, 'add-to-cart-button')))
                 
-                if button_location:
+                # ボタンが表示されていれば在庫あり
+                if stock_button.is_displayed():
                     is_in_stock = True
-                    print(f"'{product_name}'の在庫が確認できました。（画像認識による判定）")
-                else:
-                    print(f"'{product_name}'は在庫切れでした。（画像が見つからなかったため）")
+                    print(f"'{product_name}'の在庫が確認できました。（要素の存在による判定）")
 
+            except TimeoutException:
+                # ボタンが見つからない場合は在庫切れと判断
+                print(f"'{product_name}'は在庫切れでした。（ボタンが見つからなかったため）")
+            except NoSuchElementException:
+                print(f"'{product_name}'は在庫切れでした。（要素が存在しないため）")
             except Exception as e:
-                print(f"画像認識中にエラーが発生しました: {e}")
+                print(f"予期せぬエラーが発生しました: {e}")
             
             if is_in_stock:
                 in_stock_products.append({"name": product_name, "url": product_url})
 
     except WebDriverException as e:
         print(f"WebDriverエラーが発生しました: {e}")
-    except Exception as e:
-        print(f"予期せぬエラーが発生しました: {e}")
     finally:
         if driver:
             driver.quit()
