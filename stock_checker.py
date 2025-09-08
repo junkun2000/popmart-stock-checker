@@ -1,8 +1,10 @@
-import requests
-from bs4 import BeautifulSoup
 import os
 import discord
 import asyncio
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException
 
 # 環境変数を設定
 DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
@@ -11,44 +13,50 @@ DISCORD_CHANNEL_ID = int(os.environ.get('DISCORD_CHANNEL_ID'))
 # 監視したい商品のURLと商品名を辞書形式で定義
 POP_MART_PRODUCTS = {
     "CRYBABY-Crying-for-Love-Series-Plush-Gift-Box": "https://www.popmart.com/jp/products/4572/CRYBABY-Crying-for-Love-Series-Plush-Gift-Box",
-    # 監視対象を増やす場合はここに追加
 }
 
 def check_stock():
     in_stock_products = []
-    headers = {
-        # ここから追加
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-        # ここまで追加
-    }
-    for product_name, product_url in POP_MART_PRODUCTS.items():
-        try:
-            # headers=headers を追加
-            response = requests.get(product_url, headers=headers)
-            response.raise_for_status()
-            soup = BeautifulSoup(response.text, 'html.parser')
+    
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    
+    driver = None
+    try:
+        driver = webdriver.Chrome(options=chrome_options)
+        for product_name, product_url in POP_MART_PRODUCTS.items():
+            driver.get(product_url)
             
-            # テキストで在庫を判断
-            buy_button = soup.find('div', class_='index_euBtn__7NmZ6')
+            # ページが完全に読み込まれるまで待機
+            driver.implicitly_wait(10)
 
-            if buy_button and "今すぐ購入" in buy_button.text:
-                in_stock_products.append({"name": product_name, "url": product_url})
-                print(f"'{product_name}'の在庫が確認できました。")
-            else:
-                print(f"'{product_name}'は在庫切れです。")
+            # ボタンのテキストで在庫を判断
+            try:
+                buy_button = driver.find_element(By.CLASS_NAME, 'index_euBtn__7NmZ6')
+                if "今すぐ購入" in buy_button.text:
+                    in_stock_products.append({"name": product_name, "url": product_url})
+                    print(f"'{product_name}'の在庫が確認できました。")
+                else:
+                    print(f"'{product_name}'は在庫切れです。")
+            except Exception:
+                print(f"'{product_name}'のボタン要素が見つかりませんでした。在庫切れの可能性があります。")
 
-        except requests.exceptions.RequestException as e:
-            print(f"HTTPリクエストエラー: {e} ({product_name})")
-        except Exception as e:
-            print(f"予期せぬエラーが発生しました: {e} ({product_name})")
+    except WebDriverException as e:
+        print(f"WebDriverエラーが発生しました: {e}")
+    except Exception as e:
+        print(f"予期せぬエラーが発生しました: {e}")
+    finally:
+        if driver:
+            driver.quit()
     
     return in_stock_products
 
 async def send_discord_notification(products):
     if not products:
-        print("在庫ありの商品はありませんでした。")
         return
-
+    
     message = "【POP MART 入荷通知】\n\n以下の商品が入荷しました！\n\n"
     for product in products:
         message += f"・{product['name']}\n{product['url']}\n\n"
@@ -64,19 +72,21 @@ async def send_discord_notification(products):
             await channel.send(message.strip())
             print("Discordに通知を送信しました。")
         else:
-            print("指定されたチャンネルIDが見つかりません。チャンネルIDを確認してください。")
+            print("指定されたチャンネルIDが見つかりません。")
         await client.close()
 
     try:
         await client.start(DISCORD_BOT_TOKEN)
     except discord.errors.LoginFailure:
-        print("Discord Botトークンが無効です。トークンを再確認してください。")
+        print("Discord Botトークンが無効です。")
     except Exception as e:
-        print(f"Discordへの送信中に予期せぬエラーが発生しました: {e}")
+        print(f"Discordへの送信中にエラーが発生しました: {e}")
 
 if __name__ == "__main__":
+    print("スクリプトの実行を開始します。")
     stocked_items = check_stock()
     if stocked_items:
         asyncio.run(send_discord_notification(stocked_items))
     else:
         print("在庫ありの商品はありませんでした。Discordへの通知はスキップします。")
+    print("スクリプトの実行を終了しました。")
