@@ -8,6 +8,7 @@ from selenium.common.exceptions import WebDriverException, TimeoutException, NoS
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import pyscreeze
+from selenium.webdriver import Remote
 
 # 環境変数を設定
 DISCORD_BOT_TOKEN = os.environ.get('DISCORD_BOT_TOKEN')
@@ -33,7 +34,8 @@ def check_stock():
     
     driver = None
     try:
-        driver = webdriver.Chrome(options=chrome_options)
+        # ローカルではなく、リモートのWebDriverに接続するように修正
+        driver = webdriver.Remote(command_executor='http://localhost:4444/wd/hub', options=chrome_options)
         for product_name, product_url in POP_MART_PRODUCTS.items():
             print(f"'{product_name}'の在庫を確認中...")
             driver.get(product_url)
