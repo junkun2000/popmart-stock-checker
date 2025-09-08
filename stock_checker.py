@@ -35,7 +35,7 @@ def check_stock():
             response = requests.get(product_url, headers=headers)
             response.raise_for_status()
             
-            # 商品IDをHTMLから抽出
+            # HTMLから商品IDを抽出
             product_id_match = re.search(r'productId: (\d+),', response.text)
             
             if product_id_match:
@@ -60,7 +60,7 @@ def check_stock():
                 else:
                     print(f"'{product_name}'は在庫切れでした。（APIによる判定）")
             else:
-                print(f"'{product_name}'の商品IDが見つかりませんでした。HTMLの変更を確認してください。")
+                print(f"'{product_name}'の商品IDが見つかりませんでした。HTMLの変更を確認してください!")
 
         except requests.exceptions.RequestException as e:
             print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
