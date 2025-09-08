@@ -71,11 +71,15 @@ def check_stock():
                 product_name = "商品名不明"
 
             # 最終確定版 在庫判定ロジック
+            # 在庫がある場合に存在する可能性のあるボタンをすべて探す
             add_to_cart_button = soup.find('button', class_='add-to-cart-button')
             buy_now_button = soup.find('button', class_='buy-now-button')
             
-            # どちらかのボタンが存在すれば在庫ありと判断
-            in_stock = add_to_cart_button is not None or buy_now_button is not None
+            # 在庫がない場合に存在する可能性のあるボタンを探す
+            notify_me_button = soup.find('button', class_='notify-me-button')
+
+            # 在庫ありと判断する条件
+            in_stock = (add_to_cart_button is not None or buy_now_button is not None) and notify_me_button is None
 
             if in_stock:
                 print(f"✅ 在庫が見つかりました: {url}")
