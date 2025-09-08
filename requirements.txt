@@ -3,3 +3,5 @@ Flask
 gspread
 oauth2client
 selenium
+requests
+beautifulsoup4
