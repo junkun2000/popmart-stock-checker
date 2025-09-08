@@ -5,3 +5,4 @@ oauth2client
 selenium
 requests
 beautifulsoup4
+pyscreeze
