@@ -30,16 +30,14 @@ def check_stock():
             response.raise_for_status()
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # 在庫ありを示す「カートに追加する」ボタンを検索
-            add_to_cart_button = soup.find(lambda tag: 'カートに追加する' in tag.get_text())
-            
+            # 在庫ありを示すボタンを、そのテキストとクラス名で探す
+            add_to_cart_button = soup.find(lambda tag: tag.name == 'button' and 'カートに追加する' in tag.get_text() and 'disabled' not in tag.get('class', []))
+
             if add_to_cart_button:
-                # ボタンが見つかれば在庫あり
                 in_stock_products.append({"name": product_name, "url": product_url})
-                print(f"'{product_name}'の在庫が確認できました。（「カートに追加する」ボタンによる判定）")
+                print(f"'{product_name}'の在庫が確認できました。（クラス名による判定）")
             else:
-                # ボタンが見つからない場合は在庫切れ
-                print(f"'{product_name}'は在庫切れでした。（「カートに追加する」ボタンが見つかりませんでした）")
+                print(f"'{product_name}'は在庫切れでした。（「カートに追加する」ボタンが無効でした）")
 
         except requests.exceptions.RequestException as e:
             print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
