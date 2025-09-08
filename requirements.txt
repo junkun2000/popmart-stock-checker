@@ -1,6 +1,5 @@
-requests
-beautifulsoup4
 discord.py
 Flask
 gspread
 oauth2client
+selenium
