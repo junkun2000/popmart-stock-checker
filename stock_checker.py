@@ -28,13 +28,12 @@ def check_stock():
         try:
             # ページを直接リクエスト
             response = requests.get(product_url, headers=headers)
-            response.raise_for_status()  # ステータスコードがエラーの場合は例外を発生させる
+            response.raise_for_status()
 
             # レスポンスのHTMLに「在庫切れ」というテキストが含まれているかをチェック
             if "在庫なし" in response.text or "売り切れ" in response.text or "再入荷を通知" in response.text:
                 print(f"'{product_name}'は在庫切れでした。")
             else:
-                # 在庫切れを示すテキストがなければ、在庫ありと判定
                 in_stock_products.append({"name": product_name, "url": product_url})
                 print(f"'{product_name}'の在庫が確認できました。")
 
@@ -47,6 +46,7 @@ def check_stock():
 
 async def send_discord_notification(products):
     if not products:
+        print("在庫ありの商品はありませんでした。Discordへの通知はスキップします。")
         return
     
     message = "【POP MART 入荷通知】\n\n以下の商品が入荷しました！\n\n"
@@ -65,6 +65,8 @@ async def send_discord_notification(products):
             print("Discordに通知を送信しました。")
         else:
             print("指定されたチャンネルIDが見つかりません。")
+        
+        # 接続が完了してからクライアントを終了
         await client.close()
 
     try:
@@ -76,8 +78,8 @@ async def send_discord_notification(products):
 
 if __name__ == "__main__":
     stocked_items = check_stock()
-    if stocked_items:
-        asyncio.run(send_discord_notification(stocked_items))
-    else:
-        print("在庫ありの商品はありませんでした。Discordへの通知はスキップします。")
+    
+    # asyncioのイベントループを明示的に取得し、実行
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(send_discord_notification(stocked_items))
     print("スクリプトの実行を終了しました。")
