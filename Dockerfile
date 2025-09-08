@@ -4,7 +4,7 @@ FROM python:3.10-slim
 # Set the working directory
 WORKDIR /app
 
-# Install dependencies for Chrome and the Chrome driver
+# Install dependencies for Chrome
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
@@ -25,15 +25,8 @@ RUN apt-get update && apt-get install -y \
     # Clean up APT cache to reduce image size
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chrome driver using Selenium's built-in manager
-# The Selenium library will automatically handle the driver installation
-# during the initial run of the script
-RUN pip install --upgrade pip
-
-# Copy the requirements file into the container
-COPY requirements.txt .
-
 # Install Python dependencies
+COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copy the application code into the container
