@@ -33,18 +33,23 @@ def check_stock():
             # BeautifulSoupでHTMLを解析
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # 在庫なしを示す要素のクラス名をチェック
-            # 例: 特定のクラスを持つ要素を探す
-            is_sold_out_text = soup.find('div', class_='goods_btn__oGvB_')
-            is_restock_notify = soup.find('span', string='再入荷を通知')
+            # 在庫切れを示すテキストを厳密に検索
+            sold_out_text = soup.find(text='在庫なし') or soup.find(text='売り切れ') or soup.find(text='再入荷を通知')
 
-            if is_sold_out_text and is_restock_notify:
-                # 在庫切れを示す要素が存在すれば、在庫なしと判定
-                print(f"'{product_name}'は在庫切れでした。")
-            else:
-                # 在庫切れを示す要素がなければ、在庫ありと判定
+            # 「カートに追加する」ボタンのテキストを厳密に検索
+            add_to_cart_button = soup.find(text='カートに追加する')
+
+            # 在庫状況を判定
+            if sold_out_text:
+                # 在庫切れを示すテキストが存在する場合
+                print(f"'{product_name}'は在庫切れでした。（テキストによる判定）")
+            elif add_to_cart_button:
+                # 「カートに追加する」ボタンが存在する場合
                 in_stock_products.append({"name": product_name, "url": product_url})
-                print(f"'{product_name}'の在庫が確認できました。")
+                print(f"'{product_name}'の在庫が確認できました。（ボタンによる判定）")
+            else:
+                # どちらも存在しない場合（おそらく在庫切れ）
+                print(f"'{product_name}'は在庫切れでした。（ボタンが見つかりませんでした）")
 
         except requests.exceptions.RequestException as e:
             print(f"リクエスト中にエラーが発生しました: {e} ({product_name})")
