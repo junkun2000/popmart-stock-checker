@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: popmart-monitor
-    env: docker
-    plan: starter
-    dockerfilePath: ./Dockerfile
-    envVars:
-      - key: DISCORD_WEBHOOK_URL
-        value: https://discord.com/api/webhooks/MTQxNDY1MDI3NzQyNzk0MTQ0OA.G7uB-T.SDGRtSzl-c7uHkoMvWTs9iVkjT_dhva-emn-ro
