@@ -26,7 +26,8 @@ def extract_product_id(url):
 
 def check_stock_via_api(product_id):
     try:
-        api_url = f"https://www.popmart.com/api/product/detail?id={product_id}"
+        # ✅ APIベースURLを jp に変更
+        api_url = f"https://www.popmart.com/jp/api/product/detail?id={product_id}"
         res = requests.get(api_url, headers=HEADERS, timeout=10)
         res.raise_for_status()
         data = res.json()
