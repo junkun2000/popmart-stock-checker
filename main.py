@@ -5,29 +5,55 @@ from bs4 import BeautifulSoup
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 URLS_FILE = "urls.txt"
-CHECK_INTERVAL = 60  # 秒
 
-def send_discord_message(message: str):
-    if WEBHOOK_URL:
-        try:
-            requests.post(WEBHOOK_URL, json={"content": message}, timeout=10)
-        except Exception as e:
-            print(f"通知エラー: {e}", flush=True)
-
-def check_stock(url: str):
+def load_urls():
     try:
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.text, "html.parser")
-        title = soup.title.string.strip() if soup.title else "商品名不明"
+        with open(URLS_FILE, "r", encoding="utf-8") as f:
+            return [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print("⚠️ urls.txt が見つかりません", flush=True)
+        return []
 
-        button = soup.find("button", {"class": "add-to-cart-btn"})
-        if button:
-            text = button.get_text(strip=True)
-            in_stock = text not in ["再入荷を通知", "Sold Out", "SOLD OUT"]
+def check_stock(url):
+    try:
+        res = requests.get(url, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        title = soup.find("title").get_text(strip=True)
+
+        # 在庫判定（例: ボタンのテキストを確認）
+        soldout = soup.find(string=lambda text: text and "再入荷を通知" in text)
+        if soldout:
+            print(f"❌ {title} : SOLD OUT", flush=True)
+            return None
         else:
-            in_stock = False
-
-        return title, in_stock
+            print(f"✅ {title} : 在庫あり！", flush=True)
+            return title
     except Exception as e:
-        print(f"エラー: {url} → {e}", flush=True)
+        print(f"エラー: {url} - {e}", flush=True)
+        return None
+
+def notify_discord(message):
+    if not WEBHOOK_URL:
+        print("⚠️ Webhook URL が設定されていません", flush=True)
+        return
+    try:
+        requests.post(WEBHOOK_URL, json={"content": message}, timeout=10)
+    except Exception as e:
+        print(f"Discord通知失敗: {e}", flush=True)
+
+if __name__ == "__main__":
+    urls = load_urls()
+    if not urls:
+        print("監視対象URLなし。終了します。", flush=True)
+        exit(1)
+
+    while True:
+        try:
+            for url in urls:
+                name = check_stock(url)
+                if name:
+                    notify_discord(f"✅ {name}\n{url}")
+            time.sleep(60)
+        except Exception as e:
+            print(f"ループ内でエラー発生: {e}", flush=True)
