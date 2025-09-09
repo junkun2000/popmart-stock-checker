@@ -4,6 +4,8 @@ import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import StaleElementReferenceException
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
@@ -30,7 +32,11 @@ def create_driver():
 def check_stock(driver, url):
     try:
         driver.get(url)
-        time.sleep(5)  # JavaScript描画待ち
+
+        # ページ描画完了を待つ（bodyタグが表示されるまで最大10秒）
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.TAG_NAME, "body"))
+        )
 
         name = driver.title.strip() or "商品名不明"
 
