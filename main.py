@@ -26,35 +26,25 @@ def check_stock(url):
         res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
 
-        # 商品名の取得（優先順：og:title → h1 → title）
+        # 商品名の取得（metaタグ or title）
         name = "商品名不明"
         if og := soup.find("meta", property="og:title"):
             name = og.get("content", name)
-        elif h1 := soup.find("h1"):
-            name = h1.text.strip()
         elif title := soup.find("title"):
             name = title.text.strip()
 
-        # 在庫なしを示すキーワード
-        sold_out_keywords = [
-            "再入荷通知", "sold out", "SOLD OUT", "sold-out",
-            "notify-restock", "在庫なし", "品切れ", "disabled"
-        ]
-
-        # ページ内に在庫なしキーワードが含まれているか
-        page_text = soup.get_text().lower()
-        if any(keyword.lower() in page_text for keyword in sold_out_keywords):
-            print(f"❌ {name}：在庫なし", flush=True)
+        # 在庫なし判定：「再入荷を通知」ボタンがある
+        if soup.find("div", string=lambda s: s and "再入荷を通知" in s):
+            print(f"❌ {name}：再入荷通知ボタンあり → 在庫なし", flush=True)
             return False, name
 
-        # 「カートに追加」ボタンの存在と有効性を確認
-        cart_btn = soup.find("button", string=lambda s: s and ("カート" in s or "add to cart" in s.lower()))
-        if cart_btn and not cart_btn.has_attr("disabled"):
-            print(f"✅ {name}：在庫あり", flush=True)
+        # 在庫あり判定：「カートに追加する」または「今すぐ購入」ボタンがある
+        if soup.find("div", string=lambda s: s and ("カートに追加する" in s or "今すぐ購入" in s)):
+            print(f"✅ {name}：購入ボタンあり → 在庫あり", flush=True)
             return True, name
 
-        # それ以外は在庫なしと判定
-        print(f"❌ {name}：再入荷通知ボタンもなし　在庫なし", flush=True)
+        # 判定不能 → 在庫なしとみなす
+        print(f"❌ {name}：在庫判定できず → 在庫なし", flush=True)
         return False, name
 
     except Exception as e:
