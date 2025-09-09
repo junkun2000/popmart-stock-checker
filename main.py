@@ -1,51 +1,28 @@
 import requests
-import time
 from bs4 import BeautifulSoup
-import os
+from typing import Tuple
 
-# 環境変数からWebhook URLを取得
-DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
-
-# 固定の商品URLリスト（必要に応じてここに追加）
-TARGET_URLS = [
-    "https://www.popmart.com/collections/xxxxxx",
-    "https://www.popmart.com/collections/yyyyyy",
-    "https://www.popmart.com/collections/zzzzzz",
-]
-
-# 通知済み商品を記録
-notified_products = set()
-
-def check_stock(url: str) -> bool:
-    """商品ページを取得して在庫を確認"""
+def check_stock_requests(url: str) -> Tuple[bool, str]:
+    """requestsベースでまず判定。True=在庫あり, False=在庫なし"""
     res = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-    soup = BeautifulSoup(res.text, "html.parser")
+    text = res.text
+    soup = BeautifulSoup(text, "html.parser")
 
-    # HTML構造に応じて修正
-    if "Sold Out" not in soup.text:
-        return True
-    return False
+    # 商品名（meta og:title優先）
+    meta_title = soup.find("meta", property="og:title")
+    title = meta_title["content"].strip() if meta_title and meta_title.get("content") else (soup.title.string.strip() if soup.title else "商品名不明")
 
-def notify_discord(message: str):
-    """Discordに通知"""
-    if not DISCORD_WEBHOOK_URL:
-        print("Webhook未設定")
-        return
-    data = {"content": message}
-    requests.post(DISCORD_WEBHOOK_URL, json=data)
+    # 再入荷通知系の文字列があれば在庫なし
+    if ("再入荷を通知" in text) or ("再入荷通知" in text) or ("再入荷をお知らせ" in text):
+        return False, title
 
-if __name__ == "__main__":
-    while True:
-        try:
-            for url in TARGET_URLS:
-                if check_stock(url):
-                    if url not in notified_products:
-                        notify_discord(f"✅ 在庫あり！ {url}")
-                        notified_products.add(url)
-                else:
-                    if url in notified_products:
-                        # 在庫がなくなったらリセット
-                        notified_products.remove(url)
-        except Exception as e:
-            print("エラー:", e)
-        time.sleep(60)  # 1分ごとにチェック
+    # 「カートに入れる」「購入する」等があれば在庫あり
+    if ("カートに入れる" in text) or ("カートに追加" in text) or ("購入する" in text) or ("Add to cart" in text):
+        return True, title
+
+    # フォールバック（英語や別表記が混在する場合の保険）
+    if "Sold Out" in text or "売り切れ" in text:
+        return False, title
+
+    # 決め手が無ければ None 相当（ここでは False を返すか、上位ロジックで Playwright を呼ぶ）
+    return None, title
