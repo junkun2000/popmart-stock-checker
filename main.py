@@ -31,26 +31,19 @@ def check_stock(url):
         res = requests.get(url, headers=HEADERS, timeout=10)
         res.raise_for_status()
 
-        # HTMLを一時保存（デバッグ用）
+        # HTMLを一時保存（ローカルでの構造確認用）
         with open("debug.html", "w", encoding="utf-8") as f:
             f.write(res.text)
 
         soup = BeautifulSoup(res.text, "html.parser")
 
-        # 商品名の取得（metaタグ or title）
+        # 商品名の取得（titleタグから）
         name = "商品名不明"
-        if og := soup.find("meta", property="og:title"):
-            name = og.get("content", name).strip()
-        elif title := soup.find("title"):
+        if title := soup.find("title"):
             name = title.text.strip()
 
         # ページ全体のテキストを正規化して取得
         page_text = soup.get_text(separator=" ", strip=True).lower()
-
-        # 在庫なし判定
-        if "再入荷を通知" in page_text or "sold out" in page_text:
-            print(f"❌ {name}：再入荷通知あり → 在庫なし", flush=True)
-            return False, name
 
         # 在庫あり判定
         if ("カートに追加する" in page_text or
@@ -58,6 +51,11 @@ def check_stock(url):
             "add to cart" in page_text):
             print(f"✅ {name}：購入ボタンあり → 在庫あり", flush=True)
             return True, name
+
+        # 在庫なし判定
+        if "再入荷を通知" in page_text or "sold out" in page_text:
+            print(f"❌ {name}：再入荷通知あり → 在庫なし", flush=True)
+            return False, name
 
         # 判定不能 → 在庫なしとみなす
         print(f"❌ {name}：在庫判定できず → 在庫なし", flush=True)
