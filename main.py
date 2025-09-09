@@ -4,6 +4,7 @@ import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.common.exceptions import StaleElementReferenceException
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 URLS_FILE = "urls.txt"
@@ -29,13 +30,21 @@ def create_driver():
 def check_stock(driver, url):
     try:
         driver.get(url)
-        time.sleep(5)  # JavaScript描画待ち（必要に応じて調整）
+        time.sleep(5)  # JavaScript描画待ち
 
-        # 商品名取得（titleタグ）
         name = driver.title.strip() or "商品名不明"
 
-        # ページ全体のテキスト取得
-        page_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+        # stale対策：body要素の取得をリトライ
+        for _ in range(3):
+            try:
+                body = driver.find_element(By.TAG_NAME, "body")
+                page_text = body.text.lower()
+                break
+            except StaleElementReferenceException:
+                time.sleep(1)
+        else:
+            print(f"⚠️ {name}：body要素の取得に失敗", flush=True)
+            return False, name
 
         # 在庫あり判定
         if "カートに追加する" in page_text or "今すぐ購入" in page_text or "add to cart" in page_text:
@@ -47,7 +56,6 @@ def check_stock(driver, url):
             print(f"❌ {name}：再入荷通知あり → 在庫なし", flush=True)
             return False, name
 
-        # 判定不能
         print(f"❌ {name}：在庫判定できず → 在庫なし", flush=True)
         return False, name
 
