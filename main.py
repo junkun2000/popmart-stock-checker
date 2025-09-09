@@ -1,7 +1,7 @@
 import os
 import time
 import requests
-from bs4 import BeautifulSoup
+import re
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 URLS_FILE = "urls.txt"
@@ -20,57 +20,30 @@ def load_urls():
         print("⚠️ urls.txt が見つかりません", flush=True)
         return []
 
-def get_product_name(soup):
-    og_title = soup.find("meta", property="og:title")
-    if og_title and og_title.get("content"):
-        return og_title["content"].strip()
-    h1 = soup.find("h1")
-    if h1:
-        return h1.get_text(strip=True)
-    title_tag = soup.find("title")
-    if title_tag:
-        return title_tag.get_text(strip=True)
-    return "商品名不明"
+def extract_product_id(url):
+    match = re.search(r'/products/(\d+)/', url)
+    return match.group(1) if match else None
 
-def check_stock(url):
+def check_stock_via_api(product_id):
     try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
+        api_url = f"https://www.popmart.com/api/product/detail?id={product_id}"
+        res = requests.get(api_url, headers=HEADERS, timeout=10)
         res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
+        data = res.json()
 
-        title = get_product_name(soup)
+        product = data.get("product", {})
+        name = product.get("name", "商品名不明")
+        in_stock = product.get("stock", False)
 
-        # 再入荷通知系の文言を探して、すぐに在庫なし判定
-        restock_notify = soup.find(string=lambda t: t and (
-            "再入荷通知" in t or "再入荷を通知" in t or "Notify me when restocked" in t
-        ))
-        if restock_notify:
-            print(f"❌ {title} : 再入荷通知あり → 在庫なし", flush=True)
-            return False, title
-
-        # カート系のボタンを探して、有効性をチェック
-        btn = soup.find("button", string=lambda t: t and (
-            "カート" in t or "Add to cart" in t or "購入" in t
-        ))
-        if btn:
-            btn_text = btn.get_text(strip=True)
-            btn_disabled = btn.has_attr("disabled")
-            btn_classes = btn.get("class", [])
-
-            sold_out_indicators = ["sold-out", "disabled", "notify-restock", "soldout"]
-            if btn_disabled or any(c in sold_out_indicators for c in btn_classes) or "SOLD OUT" in btn_text:
-                print(f"❌ {title} : ボタン無効化検出 (text={btn_text}, classes={btn_classes}, disabled={btn_disabled}) → 在庫なし", flush=True)
-                return False, title
-
-            print(f"✅ {title} : ボタン有効 (text={btn_text}, classes={btn_classes}) → 在庫あり", flush=True)
-            return True, title
-
-        # 上記どれにも当てはまらなければ在庫なしにフォールバック
-        print(f"❌ {title} : 再入荷通知もボタンもなし → 在庫なし", flush=True)
-        return False, title
+        if in_stock:
+            print(f"✅ {name} : 在庫あり", flush=True)
+            return True, name
+        else:
+            print(f"❌ {name} : 在庫なし", flush=True)
+            return False, name
 
     except Exception as e:
-        print(f"エラー: {url} - {e}", flush=True)
+        print(f"APIエラー: {e}", flush=True)
         return False, "商品名不明"
 
 def notify_discord(message):
@@ -91,7 +64,12 @@ if __name__ == "__main__":
 
     while True:
         for url in urls:
-            in_stock, product_name = check_stock(url)
+            product_id = extract_product_id(url)
+            if not product_id:
+                print(f"⚠️ URLから商品IDを抽出できません: {url}", flush=True)
+                continue
+
+            in_stock, product_name = check_stock_via_api(product_id)
             if in_stock:
                 notify_discord(f"✅ **{product_name}** が在庫あり！\n{url}")
         time.sleep(60)
