@@ -1,28 +1,77 @@
+import os
+import time
 import requests
 from bs4 import BeautifulSoup
-from typing import Tuple
 
-def check_stock_requests(url: str) -> Tuple[bool, str]:
-    """requestsベースでまず判定。True=在庫あり, False=在庫なし"""
-    res = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
-    text = res.text
-    soup = BeautifulSoup(text, "html.parser")
+# ========================
+# 設定
+# ========================
+WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")  # Renderの環境変数で設定
+URLS_FILE = "urls.txt"
+CHECK_INTERVAL = 60  # 秒ごと（毎分チェック）
 
-    # 商品名（meta og:title優先）
-    meta_title = soup.find("meta", property="og:title")
-    title = meta_title["content"].strip() if meta_title and meta_title.get("content") else (soup.title.string.strip() if soup.title else "商品名不明")
+# ========================
+# 通知用関数
+# ========================
+def send_discord_message(message: str):
+    if WEBHOOK_URL:
+        try:
+            requests.post(WEBHOOK_URL, json={"content": message}, timeout=10)
+        except Exception as e:
+            print(f"通知エラー: {e}")
 
-    # 再入荷通知系の文字列があれば在庫なし
-    if ("再入荷を通知" in text) or ("再入荷通知" in text) or ("再入荷をお知らせ" in text):
-        return False, title
+# ========================
+# 在庫チェック関数
+# ========================
+def check_stock(url: str):
+    try:
+        response = requests.get(url, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
 
-    # 「カートに入れる」「購入する」等があれば在庫あり
-    if ("カートに入れる" in text) or ("カートに追加" in text) or ("購入する" in text) or ("Add to cart" in text):
-        return True, title
+        # 商品名（titleタグから取得）
+        title = soup.title.string.strip() if soup.title else "商品名不明"
 
-    # フォールバック（英語や別表記が混在する場合の保険）
-    if "Sold Out" in text or "売り切れ" in text:
-        return False, title
+        # ボタンのテキストを確認
+        button = soup.find("button", {"class": "add-to-cart-btn"})
+        if button:
+            text = button.get_text(strip=True)
+            in_stock = text not in ["再入荷を通知", "Sold Out", "SOLD OUT"]
+        else:
+            in_stock = False
 
-    # 決め手が無ければ None 相当（ここでは False を返すか、上位ロジックで Playwright を呼ぶ）
-    return None, title
+        return title, in_stock
+    except Exception as e:
+        print(f"エラー: {url} → {e}")
+        return "取得失敗", False
+
+# ========================
+# メイン処理
+# ========================
+def main():
+    # 起動通知
+    send_discord_message("✅ Popmart在庫監視Botを起動しました！")
+
+    # 監視ループ
+    while True:
+        try:
+            with open(URLS_FILE, "r", encoding="utf-8") as f:
+                urls = [line.strip() for line in f if line.strip()]
+        except FileNotFoundError:
+            print("urls.txt が見つかりません")
+            time.sleep(CHECK_INTERVAL)
+            continue
+
+        for url in urls:
+            title, in_stock = check_stock(url)
+            status = "🟢 在庫あり！" if in_stock else "⚪️ 在庫なし"
+            message = f"{status}\n**{title}**\n{url}"
+            print(message)  # Renderのログに出す
+            if in_stock:
+                send_discord_message(message)
+
+        time.sleep(CHECK_INTERVAL)
+
+
+if __name__ == "__main__":
+    main()
