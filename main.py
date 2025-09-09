@@ -1,7 +1,6 @@
 import os
 import time
 import requests
-import re
 from bs4 import BeautifulSoup
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
