@@ -6,6 +6,12 @@ from bs4 import BeautifulSoup
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 URLS_FILE = "urls.txt"
 
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                  "AppleWebKit/537.36 (KHTML, like Gecko) "
+                  "Chrome/123.0.0.0 Safari/537.36"
+}
+
 def load_urls():
     try:
         with open(URLS_FILE, "r", encoding="utf-8") as f:
@@ -14,14 +20,28 @@ def load_urls():
         print("⚠️ urls.txt が見つかりません", flush=True)
         return []
 
+def get_product_name(soup):
+    # og:title があれば優先
+    og_title = soup.find("meta", property="og:title")
+    if og_title and og_title.get("content"):
+        return og_title["content"]
+
+    # title タグ fallback
+    title_tag = soup.find("title")
+    if title_tag:
+        return title_tag.get_text(strip=True)
+
+    return "商品名不明"
+
 def check_stock(url):
     try:
-        res = requests.get(url, timeout=10)
+        res = requests.get(url, headers=HEADERS, timeout=10)
         res.raise_for_status()
         soup = BeautifulSoup(res.text, "html.parser")
-        title = soup.find("title").get_text(strip=True)
 
-        # 在庫判定（例: ボタンのテキストを確認）
+        title = get_product_name(soup)
+
+        # 「再入荷を通知」がある＝売り切れ
         soldout = soup.find(string=lambda text: text and "再入荷を通知" in text)
         if soldout:
             print(f"❌ {title} : SOLD OUT", flush=True)
@@ -38,22 +58,4 @@ def notify_discord(message):
         print("⚠️ Webhook URL が設定されていません", flush=True)
         return
     try:
-        requests.post(WEBHOOK_URL, json={"content": message}, timeout=10)
-    except Exception as e:
-        print(f"Discord通知失敗: {e}", flush=True)
-
-if __name__ == "__main__":
-    urls = load_urls()
-    if not urls:
-        print("監視対象URLなし。終了します。", flush=True)
-        exit(1)
-
-    while True:
-        try:
-            for url in urls:
-                name = check_stock(url)
-                if name:
-                    notify_discord(f"✅ {name}\n{url}")
-            time.sleep(60)
-        except Exception as e:
-            print(f"ループ内でエラー発生: {e}", flush=True)
+        request
