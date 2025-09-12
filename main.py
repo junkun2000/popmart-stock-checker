@@ -34,7 +34,6 @@ def check_stock(url):
     try:
         driver.get(url)
 
-        # ページ描画完了を待つ
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
@@ -59,6 +58,14 @@ def check_stock(url):
         else:
             print(f"⚠️ {name}：body要素の取得に失敗", flush=True)
             return False, name
+
+        # HTML保存（デバッグ用）
+        try:
+            with open("debug.html", "w", encoding="utf-8") as f:
+                f.write(driver.page_source)
+            print("📝 HTMLを debug.html に保存しました", flush=True)
+        except Exception as e:
+            print(f"⚠️ HTML保存失敗: {e}", flush=True)
 
         # 在庫判定キーワード
         keywords_in_stock = ["カートに追加する", "今すぐ購入", "add to cart", "buy now"]
