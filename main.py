@@ -29,7 +29,8 @@ def create_driver():
     chrome_options.add_argument("--disable-blink-features=AutomationControlled")
     return webdriver.Chrome(options=chrome_options)
 
-def check_stock(driver, url):
+def check_stock(url):
+    driver = create_driver()
     try:
         driver.get(url)
 
@@ -68,6 +69,8 @@ def check_stock(driver, url):
     except Exception as e:
         print(f"⚠️ エラー発生: {e}", flush=True)
         return False, "商品名不明"
+    finally:
+        driver.quit()
 
 def notify_discord(message):
     if not WEBHOOK_URL:
@@ -85,11 +88,9 @@ if __name__ == "__main__":
         print("監視対象URLなし。終了します。", flush=True)
         exit(1)
 
-    driver = create_driver()
-
     while True:
         for url in urls:
-            in_stock, product_name = check_stock(driver, url)
+            in_stock, product_name = check_stock(url)
             if in_stock:
                 notify_discord(f"✅ **{product_name}** が在庫あり！\n{url}")
         time.sleep(60)
