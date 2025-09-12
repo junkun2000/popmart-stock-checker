@@ -1,92 +1,38 @@
 import os
-import time
 import requests
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import StaleElementReferenceException
 
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
-URLS_FILE = "urls.txt"
+SPU_ID = "5771"
 
-def load_urls():
+def check_stock(spu_id):
+    url = f"https://prod-intl-api.popmart.com/shop/v1/shop/productDetails?spuId={spu_id}&s=99a6cc23dec9e1785bddc9f5e9f5e4e3&t=1757719240"
+
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://www.popmart.com/",
+        "Authorization": "Bearer YOUR_ACCESS_TOKEN",  # ← ここに有効なトークンを入れる
+        "Cookie": "__cf_bm=bz6oTGUUXSP4wzXRFhHYWp_Zld0N.l9L1lXzquXlPEI-1757719242-1.0.1.1-cx9GkCoga_AgjhWFisI.KmxtLHK8gyxZuJO6Wt7AzKxQHISXMU01HUvyFG3Cq4l33qu4Xiqu1fky9c1vvBOAppJebqrJGZB9HPrFilN5HZs"
+    }
+
     try:
-        with open(URLS_FILE, "r", encoding="utf-8") as f:
-            return [line.strip() for line in f if line.strip()]
-    except FileNotFoundError:
-        print("⚠️ urls.txt が見つかりません", flush=True)
-        return []
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
 
-def create_driver():
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--window-size=1920x1080")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    return webdriver.Chrome(options=chrome_options)
+        # 商品名と在庫状態の抽出（構造はレスポンスに応じて調整）
+        name = data.get("data", {}).get("spu", {}).get("name", "商品名不明")
+        stock_status = data.get("data", {}).get("spu", {}).get("stockStatus", "unknown")
 
-def check_stock(url):
-    driver = create_driver()
-    try:
-        driver.get(url)
-
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.TAG_NAME, "body"))
-        )
-
-        # 商品名取得（titleが空ならh1を試す）
-        name = driver.title.strip()
-        if not name:
-            try:
-                name_elem = driver.find_element(By.CSS_SELECTOR, "h1")
-                name = name_elem.text.strip()
-            except:
-                name = "商品名不明"
-
-        # ページテキスト取得（stale対策）
-        for _ in range(3):
-            try:
-                body = driver.find_element(By.TAG_NAME, "body")
-                page_text = body.text.lower()
-                break
-            except StaleElementReferenceException:
-                time.sleep(1)
-        else:
-            print(f"⚠️ {name}：body要素の取得に失敗", flush=True)
-            return False, name
-
-        # HTML保存（デバッグ用）
-        try:
-            with open("debug.html", "w", encoding="utf-8") as f:
-                f.write(driver.page_source)
-            print("📝 HTMLを debug.html に保存しました", flush=True)
-        except Exception as e:
-            print(f"⚠️ HTML保存失敗: {e}", flush=True)
-
-        # 在庫判定キーワード
-        keywords_in_stock = ["カートに追加する", "今すぐ購入", "add to cart", "buy now"]
-        keywords_out_of_stock = ["再入荷を通知", "sold out", "在庫なし"]
-
-        if any(k in page_text for k in keywords_in_stock):
-            print(f"✅ {name}：購入ボタンあり → 在庫あり", flush=True)
+        if stock_status == "IN_STOCK":
+            print(f"✅ {name}：在庫あり", flush=True)
             return True, name
-
-        if any(k in page_text for k in keywords_out_of_stock):
-            print(f"❌ {name}：再入荷通知あり → 在庫なし", flush=True)
+        else:
+            print(f"❌ {name}：在庫なし", flush=True)
             return False, name
-
-        print(f"❌ {name}：在庫判定できず → 在庫なし", flush=True)
-        return False, name
 
     except Exception as e:
-        print(f"⚠️ エラー発生: {e}", flush=True)
+        print(f"⚠️ API取得エラー: {e}", flush=True)
         return False, "商品名不明"
-    finally:
-        driver.quit()
 
 def notify_discord(message):
     if not WEBHOOK_URL:
@@ -99,14 +45,6 @@ def notify_discord(message):
         print(f"通知エラー: {e}", flush=True)
 
 if __name__ == "__main__":
-    urls = load_urls()
-    if not urls:
-        print("監視対象URLなし。終了します。", flush=True)
-        exit(1)
-
-    while True:
-        for url in urls:
-            in_stock, product_name = check_stock(url)
-            if in_stock:
-                notify_discord(f"✅ **{product_name}** が在庫あり！\n{url}")
-        time.sleep(60)
+    in_stock, product_name = check_stock(SPU_ID)
+    if in_stock:
+        notify_discord(f"✅ **{product_name}** が在庫あり！\nhttps://www.popmart.com/jp/products/{SPU_ID}")
