@@ -34,14 +34,21 @@ def check_stock(url):
     try:
         driver.get(url)
 
-        # ページ描画完了を待つ（bodyタグが表示されるまで最大10秒）
+        # ページ描画完了を待つ
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.TAG_NAME, "body"))
         )
 
-        name = driver.title.strip() or "商品名不明"
+        # 商品名取得（titleが空ならh1を試す）
+        name = driver.title.strip()
+        if not name:
+            try:
+                name_elem = driver.find_element(By.CSS_SELECTOR, "h1")
+                name = name_elem.text.strip()
+            except:
+                name = "商品名不明"
 
-        # stale対策：body要素の取得をリトライ
+        # ページテキスト取得（stale対策）
         for _ in range(3):
             try:
                 body = driver.find_element(By.TAG_NAME, "body")
@@ -53,13 +60,15 @@ def check_stock(url):
             print(f"⚠️ {name}：body要素の取得に失敗", flush=True)
             return False, name
 
-        # 在庫あり判定
-        if "カートに追加する" in page_text or "今すぐ購入" in page_text or "add to cart" in page_text:
+        # 在庫判定キーワード
+        keywords_in_stock = ["カートに追加する", "今すぐ購入", "add to cart", "buy now"]
+        keywords_out_of_stock = ["再入荷を通知", "sold out", "在庫なし"]
+
+        if any(k in page_text for k in keywords_in_stock):
             print(f"✅ {name}：購入ボタンあり → 在庫あり", flush=True)
             return True, name
 
-        # 在庫なし判定
-        if "再入荷を通知" in page_text or "sold out" in page_text:
+        if any(k in page_text for k in keywords_out_of_stock):
             print(f"❌ {name}：再入荷通知あり → 在庫なし", flush=True)
             return False, name
 
