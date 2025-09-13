@@ -108,4 +108,16 @@ def main():
                 save_last_status(product_name, current_status)
                 print(f"🔔 {product_name} 在庫変化: {last_status} → {current_status}")
             else:
-                print(f"{product_name} の在庫変化なし ({current_stat
+                # 修正済み行
+                print(f"{product_name} の在庫変化なし ({current_status})")
+
+        # ランダムスリープ 25〜45秒
+        sleep_time = random.randint(25, 45)
+        print(f"次のチェックまで {sleep_time} 秒待機...")
+        time.sleep(sleep_time)
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"❌ スクリプト起動エラー: {e}")
