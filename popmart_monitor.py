@@ -44,9 +44,13 @@ def check_stock_and_image_and_name(html):
     og_img = soup.find("meta", property="og:image")
     image_url = og_img["content"] if og_img else None
 
-    # 商品名
+    # 商品名（OGタイトル→h1タグ→不明）
     og_title = soup.find("meta", property="og:title")
-    product_name = og_title["content"] if og_title else "不明な商品"
+    if og_title and og_title.get("content"):
+        product_name = og_title["content"]
+    else:
+        h1_title = soup.find("h1")
+        product_name = h1_title.get_text(strip=True) if h1_title else "不明な商品"
 
     return status, image_url, product_name
 
@@ -92,7 +96,8 @@ def main():
 
             last_status = load_last_status(product_name)
 
-            if current_status != last_status and current_status != "unknown":
+            # 初回判定や在庫変化時は通知
+            if last_status == "unknown" or (current_status != last_status and current_status != "unknown"):
                 notify_discord(product_name, current_status, url, image_url)
                 save_last_status(product_name, current_status)
                 print(f"🔔 {product_name} 在庫変化: {last_status} → {current_status}")
@@ -105,4 +110,7 @@ def main():
         time.sleep(sleep_time)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        print(f"❌ スクリプト起動エラー: {e}")
