@@ -9,7 +9,7 @@ import requests
 import cloudscraper
 from bs4 import BeautifulSoup
 
-# Playwright用
+# Playwright
 from playwright.sync_api import sync_playwright
 
 # 監視対象URLリスト
@@ -40,11 +40,10 @@ def fetch_page_cloudscraper(url):
 def fetch_page_playwright(url):
     """JSレンダリング後のHTML取得"""
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=True)  # Chromium を明示的に指定
         page = browser.new_page()
         page.goto(url)
-        # ページ読み込み待ち
-        page.wait_for_timeout(2000)  # 2秒待機
+        page.wait_for_timeout(2000)  # JS描画待ち
         html = page.content()
         browser.close()
     return html
@@ -57,7 +56,7 @@ def parse_product_info(html):
     product_name_tag = soup.find("h1", class_=re.compile("ProductDetail_title"))
     product_name = product_name_tag.get_text(strip=True) if product_name_tag else None
 
-    # 画像
+    # OG画像
     og_img = soup.find("meta", property="og:image")
     image_url = og_img["content"] if og_img else None
 
@@ -106,11 +105,11 @@ def main():
     while True:
         for url in PRODUCT_URLS:
             try:
-                # まず Cloudscraper で軽量取得
+                # 1. Cloudscraperで軽量チェック
                 html = fetch_page_cloudscraper(url)
                 product_name, image_url, status = parse_product_info(html)
 
-                # Cloudscraperで判定できない場合、Playwrightで詳細チェック
+                # 2. 判定できない場合は Playwright で詳細チェック
                 if not product_name or status == "unknown":
                     html = fetch_page_playwright(url)
                     product_name, image_url, status = parse_product_info(html)
@@ -120,12 +119,13 @@ def main():
 
             last_status = load_last_status(product_name)
 
+            # 初回は保存のみ
             if last_status is None:
-                # 初回は保存のみ
                 save_last_status(product_name, status)
                 print(f"初回判定: {product_name} ステータス保存 {status}")
                 continue
 
+            # 在庫変化時のみ通知
             if status != last_status:
                 notify_discord(product_name, status, url, image_url)
                 save_last_status(product_name, status)
@@ -133,7 +133,7 @@ def main():
             else:
                 print(f"{product_name} の在庫変化なし ({status})")
 
-        # ランダムスリープ 25〜45秒
+        # 次のチェックまでランダムスリープ 25〜45秒
         sleep_time = random.randint(25, 45)
         print(f"次のチェックまで {sleep_time} 秒待機...")
         time.sleep(sleep_time)
