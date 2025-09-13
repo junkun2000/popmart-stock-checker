@@ -5,6 +5,7 @@ import os
 import pathlib
 import time
 import random
+import re
 from datetime import datetime
 
 # 監視対象URLリスト
@@ -16,6 +17,10 @@ PRODUCT_URLS = [
 WEBHOOK_URL = os.environ.get("DISCORD_WEBHOOK_URL")
 STATUS_DIR = "statuses"
 pathlib.Path(STATUS_DIR).mkdir(exist_ok=True)
+
+def safe_filename(name):
+    """商品名をファイル名に使える文字列に変換"""
+    return re.sub(r'[^0-9a-zA-Z_-]', '_', name)
 
 def fetch_page(url):
     scraper = cloudscraper.create_scraper(
@@ -31,20 +36,19 @@ def fetch_page(url):
 def check_stock_and_image_and_name(html):
     soup = BeautifulSoup(html, "html.parser")
     
-    # 在庫判定
     text = soup.get_text()
-    if "カートに追加する" in text or "今すぐ購入" in text:
+    text_clean = re.sub(r'\s+', '', text)  # 空白・改行を削除
+
+    if "カートに追加する" in text_clean or "今すぐ購入" in text_clean:
         status = "in_stock"
-    elif "再入荷を通知する" in text:
+    elif "再入荷を通知する" in text_clean:
         status = "out_of_stock"
     else:
         status = "unknown"
 
-    # 商品画像
     og_img = soup.find("meta", property="og:image")
     image_url = og_img["content"] if og_img else None
 
-    # 商品名（OGタイトル→h1タグ→不明）
     og_title = soup.find("meta", property="og:title")
     if og_title and og_title.get("content"):
         product_name = og_title["content"]
@@ -55,18 +59,18 @@ def check_stock_and_image_and_name(html):
     return status, image_url, product_name
 
 def load_last_status(product_name):
-    file_path = pathlib.Path(STATUS_DIR) / f"{product_name}.txt"
+    file_path = pathlib.Path(STATUS_DIR) / f"{safe_filename(product_name)}.txt"
     if file_path.exists():
         return file_path.read_text().strip()
-    return "unknown"
+    return None
 
 def save_last_status(product_name, status):
-    file_path = pathlib.Path(STATUS_DIR) / f"{product_name}.txt"
+    file_path = pathlib.Path(STATUS_DIR) / f"{safe_filename(product_name)}.txt"
     file_path.write_text(status)
 
 def notify_discord(product_name, status, url, image_url=None):
     color = 0x00ff00 if status == "in_stock" else 0xff0000
-    status_text = "✅ 在庫あり" if status == "in_stock" else "❌ 在庫なし"
+    status_text = "✅ 在庫あり" if status == "in_stock" else "❌ 在庫なし" if status == "out_of_stock" else "❓ 判定不可"
     timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
     embed = {
@@ -96,15 +100,17 @@ def main():
 
             last_status = load_last_status(product_name)
 
-            # 初回判定や在庫変化時は通知
-            if last_status == "unknown" or (current_status != last_status and current_status != "unknown"):
+            # 取得テキストサンプルをログ出力（判定確認用）
+            print(f"{product_name} 取得テキストサンプル: {html[:200]}...")
+
+            # 初回または在庫変化時に通知
+            if last_status is None or current_status != last_status:
                 notify_discord(product_name, current_status, url, image_url)
                 save_last_status(product_name, current_status)
                 print(f"🔔 {product_name} 在庫変化: {last_status} → {current_status}")
             else:
                 print(f"{product_name} の在庫変化なし ({current_status})")
 
-        # ランダムスリープ 25〜45秒
         sleep_time = random.randint(25, 45)
         print(f"次のチェックまで {sleep_time} 秒待機...")
         time.sleep(sleep_time)
