@@ -1,12 +1,16 @@
-import cloudscraper
-from bs4 import BeautifulSoup
-import requests
 import os
 import pathlib
 import time
 import random
 import re
 from datetime import datetime
+import requests
+
+import cloudscraper
+from bs4 import BeautifulSoup
+
+# Playwright用
+from playwright.sync_api import sync_playwright
 
 # 監視対象URLリスト
 PRODUCT_URLS = [
@@ -21,7 +25,8 @@ pathlib.Path(STATUS_DIR).mkdir(exist_ok=True)
 def safe_filename(name):
     return re.sub(r'[^0-9a-zA-Z_-]', '_', name)
 
-def fetch_page(url):
+def fetch_page_cloudscraper(url):
+    """軽量チェック用 Cloudscraper 取得"""
     scraper = cloudscraper.create_scraper(
         browser={'browser': 'chrome', 'platform': 'windows', 'mobile': False}
     )
@@ -32,18 +37,31 @@ def fetch_page(url):
     res = scraper.get(url, headers=headers)
     return res.text
 
-def check_stock_and_image_and_name(html):
+def fetch_page_playwright(url):
+    """JSレンダリング後のHTML取得"""
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto(url)
+        # ページ読み込み待ち
+        page.wait_for_timeout(2000)  # 2秒待機
+        html = page.content()
+        browser.close()
+    return html
+
+def parse_product_info(html):
+    """商品名、画像URL、在庫判定"""
     soup = BeautifulSoup(html, "html.parser")
-
-    # 商品名：過去成功例のクラス指定
+    
+    # 商品名
     product_name_tag = soup.find("h1", class_=re.compile("ProductDetail_title"))
-    product_name = product_name_tag.get_text(strip=True) if product_name_tag else "不明な商品"
+    product_name = product_name_tag.get_text(strip=True) if product_name_tag else None
 
-    # 画像URL
+    # 画像
     og_img = soup.find("meta", property="og:image")
     image_url = og_img["content"] if og_img else None
 
-    # 在庫判定（空白・改行を削除して検索）
+    # 在庫判定
     text_clean = re.sub(r'\s+', '', soup.get_text())
     if "カートに追加する" in text_clean or "今すぐ購入" in text_clean:
         status = "in_stock"
@@ -52,7 +70,7 @@ def check_stock_and_image_and_name(html):
     else:
         status = "unknown"
 
-    return status, image_url, product_name
+    return product_name, image_url, status
 
 def load_last_status(product_name):
     file_path = pathlib.Path(STATUS_DIR) / f"{safe_filename(product_name)}.txt"
@@ -88,28 +106,32 @@ def main():
     while True:
         for url in PRODUCT_URLS:
             try:
-                html = fetch_page(url)
-                current_status, image_url, product_name = check_stock_and_image_and_name(html)
+                # まず Cloudscraper で軽量取得
+                html = fetch_page_cloudscraper(url)
+                product_name, image_url, status = parse_product_info(html)
+
+                # Cloudscraperで判定できない場合、Playwrightで詳細チェック
+                if not product_name or status == "unknown":
+                    html = fetch_page_playwright(url)
+                    product_name, image_url, status = parse_product_info(html)
             except Exception as e:
-                print(f"❌ {url} の取得でエラー: {e}")
+                print(f"❌ {url} 取得エラー: {e}")
                 continue
 
             last_status = load_last_status(product_name)
 
-            # 初回は保存のみ、通知はしない
             if last_status is None:
-                save_last_status(product_name, current_status)
-                print(f"初回判定: {product_name} ステータス保存 {current_status}")
+                # 初回は保存のみ
+                save_last_status(product_name, status)
+                print(f"初回判定: {product_name} ステータス保存 {status}")
                 continue
 
-            # 在庫変化があった場合のみ通知
-            if current_status != last_status:
-                notify_discord(product_name, current_status, url, image_url)
-                save_last_status(product_name, current_status)
-                print(f"🔔 {product_name} 在庫変化: {last_status} → {current_status}")
+            if status != last_status:
+                notify_discord(product_name, status, url, image_url)
+                save_last_status(product_name, status)
+                print(f"🔔 {product_name} 在庫変化: {last_status} → {status}")
             else:
-                # 修正済み行
-                print(f"{product_name} の在庫変化なし ({current_status})")
+                print(f"{product_name} の在庫変化なし ({status})")
 
         # ランダムスリープ 25〜45秒
         sleep_time = random.randint(25, 45)
