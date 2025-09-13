@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+CHROME_DIR=".render/chrome"
+mkdir -p $CHROME_DIR
+curl -SL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o $CHROME_DIR/chrome.deb
+dpkg -x $CHROME_DIR/chrome.deb $CHROME_DIR
