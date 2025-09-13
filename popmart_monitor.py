@@ -74,9 +74,13 @@ def notify_discord(product_name, status, url, image_url=None):
         embed["thumbnail"] = {"url": image_url}
 
     payload = {"embeds": [embed]}
-    requests.post(WEBHOOK_URL, json=payload)
+    try:
+        requests.post(WEBHOOK_URL, json=payload, timeout=10)
+    except Exception as e:
+        print(f"❌ Discord通知送信エラー: {e}")
 
 def main():
+    print("🚀 POPMART監視スクリプトを起動しました")
     while True:
         for url in PRODUCT_URLS:
             try:
