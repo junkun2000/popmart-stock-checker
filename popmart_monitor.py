@@ -19,7 +19,6 @@ STATUS_DIR = "statuses"
 pathlib.Path(STATUS_DIR).mkdir(exist_ok=True)
 
 def safe_filename(name):
-    """商品名をファイル名に使える文字列に変換"""
     return re.sub(r'[^0-9a-zA-Z_-]', '_', name)
 
 def fetch_page(url):
@@ -35,26 +34,23 @@ def fetch_page(url):
 
 def check_stock_and_image_and_name(html):
     soup = BeautifulSoup(html, "html.parser")
-    
-    text = soup.get_text()
-    text_clean = re.sub(r'\s+', '', text)  # 空白・改行を削除
 
+    # 商品名：過去成功例のクラス指定
+    product_name_tag = soup.find("h1", class_=re.compile("ProductDetail_title"))
+    product_name = product_name_tag.get_text(strip=True) if product_name_tag else "不明な商品"
+
+    # 画像URL
+    og_img = soup.find("meta", property="og:image")
+    image_url = og_img["content"] if og_img else None
+
+    # 在庫判定（空白・改行を削除して検索）
+    text_clean = re.sub(r'\s+', '', soup.get_text())
     if "カートに追加する" in text_clean or "今すぐ購入" in text_clean:
         status = "in_stock"
     elif "再入荷を通知する" in text_clean:
         status = "out_of_stock"
     else:
         status = "unknown"
-
-    og_img = soup.find("meta", property="og:image")
-    image_url = og_img["content"] if og_img else None
-
-    og_title = soup.find("meta", property="og:title")
-    if og_title and og_title.get("content"):
-        product_name = og_title["content"]
-    else:
-        h1_title = soup.find("h1")
-        product_name = h1_title.get_text(strip=True) if h1_title else "不明な商品"
 
     return status, image_url, product_name
 
@@ -100,23 +96,16 @@ def main():
 
             last_status = load_last_status(product_name)
 
-            # 取得テキストサンプルをログ出力（判定確認用）
-            print(f"{product_name} 取得テキストサンプル: {html[:200]}...")
+            # 初回は保存のみ、通知はしない
+            if last_status is None:
+                save_last_status(product_name, current_status)
+                print(f"初回判定: {product_name} ステータス保存 {current_status}")
+                continue
 
-            # 初回または在庫変化時に通知
-            if last_status is None or current_status != last_status:
+            # 在庫変化があった場合のみ通知
+            if current_status != last_status:
                 notify_discord(product_name, current_status, url, image_url)
                 save_last_status(product_name, current_status)
                 print(f"🔔 {product_name} 在庫変化: {last_status} → {current_status}")
             else:
-                print(f"{product_name} の在庫変化なし ({current_status})")
-
-        sleep_time = random.randint(25, 45)
-        print(f"次のチェックまで {sleep_time} 秒待機...")
-        time.sleep(sleep_time)
-
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print(f"❌ スクリプト起動エラー: {e}")
+                print(f"{product_name} の在庫変化なし ({current_stat
