@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
+
 CHROME_DIR=".render/chrome"
 mkdir -p $CHROME_DIR
+
+# Chrome本体をダウンロードして展開
 curl -SL https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb -o $CHROME_DIR/chrome.deb
 dpkg -x $CHROME_DIR/chrome.deb $CHROME_DIR
+
+# ChromeDriverをダウンロードして展開（Chromeのバージョンに合わせる）
+curl -SL https://chromedriver.storage.googleapis.com/117.0.5938.92/chromedriver_linux64.zip -o $CHROME_DIR/chromedriver.zip
+unzip $CHROME_DIR/chromedriver.zip -d $CHROME_DIR
